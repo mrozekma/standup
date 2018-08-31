@@ -1,0 +1,29 @@
+<view>
+    <vue-simple-spinner></vue-simple-spinner>
+    <su-callout type="info" title="Debug">Logged in as <b>{{ user.username }}</b></su-callout>
+    <su-callout type="info" title="Debug">
+        <pre>{{ apiTest }}</pre>
+    </su-callout>
+</view>
+
+<style>
+    .vue-simple-spinner {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+    }
+    .content {
+        position: relative;
+    }
+</style>
+
+<script>
+    Vue.use(Toasted);
+    $(function() {
+        let toast = Vue.toasted.show("Toasted !!", {
+            theme: "primary",
+            position: "bottom-right",
+            duration : 5000
+        });
+    });
+</script>

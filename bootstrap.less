@@ -1,0 +1,60 @@
+// To save load time, this is run through lessc to statically create static/third-party/bootstrap.css
+
+@import 'bootstrap/variables.less';
+
+@grid-float-breakpoint: 0;
+//@navbar-inverse-color:                      lighten(#0152a1, 15%);
+//@navbar-inverse-link-color:                 lighten(#0152a1, 15%);
+@navbar-inverse-bg:                         #01386E;
+
+@import 'bootstrap/scaffolding.less';
+@import 'bootstrap/utilities.less';
+
+// Include all the mixins
+@import 'bootstrap/mixins/alerts.less';
+@import 'bootstrap/mixins/background-variant.less';
+@import 'bootstrap/mixins/border-radius.less';
+@import 'bootstrap/mixins/buttons.less';
+@import 'bootstrap/mixins/center-block.less';
+@import 'bootstrap/mixins/clearfix.less';
+@import 'bootstrap/mixins/forms.less';
+@import 'bootstrap/mixins/gradients.less';
+@import 'bootstrap/mixins/grid-framework.less';
+@import 'bootstrap/mixins/grid.less';
+@import 'bootstrap/mixins/hide-text.less';
+@import 'bootstrap/mixins/image.less';
+@import 'bootstrap/mixins/labels.less';
+@import 'bootstrap/mixins/list-group.less';
+@import 'bootstrap/mixins/nav-divider.less';
+@import 'bootstrap/mixins/nav-vertical-align.less';
+@import 'bootstrap/mixins/opacity.less';
+@import 'bootstrap/mixins/pagination.less';
+@import 'bootstrap/mixins/panels.less';
+@import 'bootstrap/mixins/progress-bar.less';
+@import 'bootstrap/mixins/reset-filter.less';
+@import 'bootstrap/mixins/reset-text.less';
+@import 'bootstrap/mixins/resize.less';
+@import 'bootstrap/mixins/responsive-visibility.less';
+@import 'bootstrap/mixins/size.less';
+@import 'bootstrap/mixins/tab-focus.less';
+@import 'bootstrap/mixins/table-row.less';
+@import 'bootstrap/mixins/text-emphasis.less';
+@import 'bootstrap/mixins/text-overflow.less';
+@import 'bootstrap/mixins/vendor-prefixes.less';
+
+// But only certain components
+@import 'bootstrap/buttons.less';
+@import 'bootstrap/forms.less';
+@import 'bootstrap/labels.less';
+// The order of navs and navbar is surprisingly important. I want that on the record since I spent an hour figuring it out
+@import 'bootstrap/navs.less';
+@import 'bootstrap/navbar.less';
+
+// And tweak a few things
+.label {
+	font-weight: normal;
+}
+
+a.btn {
+  font-family: Arial;
+}

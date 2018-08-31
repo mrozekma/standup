@@ -1,0 +1,39 @@
+html, body {
+	height: ~"calc(100% - 14px)";
+}
+
+body {
+	margin: 0 5% 0 5%;
+	background-color: #eee;
+}
+
+#vue-root {
+	display: flex;
+	flex-flow: column;
+	height: 100%;
+}
+
+.header {
+	flex: 0 0 auto;
+}
+
+.content {
+	flex: 1 0 auto;
+	padding: 0 30px;
+	background-color: #fff;
+	text-align: left;
+	font-size: 90%;
+	border: 1px solid #000;
+	border-top-width: 0;
+}
+
+a {
+	text-decoration: none;
+	&:hover {
+		text-decoration: underline;
+	}
+}
+
+.clear {
+	clear: both;
+}

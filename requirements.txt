@@ -1,0 +1,5 @@
+bleach
+
+oauthlib
+requests
+requests_oauthlib
