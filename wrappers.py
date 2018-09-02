@@ -56,9 +56,8 @@ def header(handler, includes, components):
 
 	projects = None
 	if handler.session['user']:
-		jira = Jira.fromHandler(handler)
 		try:
-			projects = jira.getProjects()
+			projects = handler.jira.getProjects()
 		except APIError:
 			pass
 	print(f"<su-header :projects={quoteattr(json.dumps(projects))}></su-header>")

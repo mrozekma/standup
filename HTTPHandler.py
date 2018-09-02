@@ -2,7 +2,7 @@ from bleach import clean
 from os.path import isfile
 import sys
 
-from Jira import Jira, APIError
+from Jira import Jira, APIError, Cache
 from Log import console
 from wrappers import header, footer
 
@@ -25,10 +25,15 @@ class HTTPHandler(ParentHandler):
 	def log_message(self, fmt, *args):
 		console('rorn', "%s - %s", self.address_string(), fmt % args)
 
+	def processingRequest(self):
+		if self.session['user']:
+			self.jira = Jira.fromHandler(self)
+			if self.session['jiraCache'] is None:
+				self.session['jiraCache'] = Cache()
+
 	def invokeHandler(self, handler, query):
 		user = self.session['user']
 		if user:
-			self.jira = Jira.fromHandler(self)
 			try:
 				user['jiraProfile'] = self.jira.get('api/myself', cacheRead = False)
 			except APIError as e:
@@ -42,13 +47,9 @@ class HTTPHandler(ParentHandler):
 			# self.log = False
 
 		if user:
-			if self.session['jiraCache']:
-				# Clear Jira cache on hard refresh
-				if 'view' in handler and self.headers.get('Cache-Control', None) == 'no-cache':
-					self.session['jiraCache'].clear()
-			else:
-				from Jira import Cache
-				self.session['jiraCache'] = Cache()
+			# Clear Jira cache on hard refresh. Only count hard refreshes of view-backed pages, since some normal requests are sent no-cache (e.g. favicon)
+			if 'view' in handler and self.headers.get('Cache-Control', None) == 'no-cache':
+				self.session['jiraCache'].clear()
 		elif 'allowGuest' not in handler or not handler['allowGuest']:
 			print("<su-login></su-login>")
 			return

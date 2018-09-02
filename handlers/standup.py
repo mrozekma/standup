@@ -2,12 +2,9 @@ from textwrap import dedent
 
 from rorn import code
 
-from Jira import Jira
-
 @get('', view = 'home')
 def home(handler):
-	jira = Jira.fromHandler(handler)
-	return {'projects': jira.getProjects()}
+	return {'projects': handler.jira.getProjects()}
 
 @get('code.css', allowGuest = True)
 def codeCSS(handler):
@@ -25,8 +22,7 @@ def codeCSS(handler):
 # For testing
 @get('api/(?P<route>.+)')
 def api(handler, route, **kw):
-	jira = Jira.fromHandler(handler)
-	data = jira.get(route, **kw)
+	data = handler.jira.get(route, **kw)
 
 	import json, types
 	if isinstance(data, types.GeneratorType):
