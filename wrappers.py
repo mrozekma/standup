@@ -1,7 +1,7 @@
 import json
-from pathlib import Path
-import re
-import sys
+from xml.sax.saxutils import quoteattr
+
+from Jira import Jira, APIError, config
 
 def header(handler, includes, components):
 	print("<!DOCTYPE html>")
@@ -20,6 +20,7 @@ def header(handler, includes, components):
 	print("<script src=\"/static/third-party/jquery-ui.min.js\"></script>")
 
 	print("<link rel=\"stylesheet\" type=\"text/css\" href=\"/static/third-party/bootstrap.css\">")
+	print("<script src=\"/static/third-party/bootstrap.min.js\"></script>")
 
 	# Vue
 	print("<script src=\"/static/third-party/vue/vue.js\"></script>")
@@ -52,11 +53,15 @@ def header(handler, includes, components):
 	print("</head>")
 	print("<body>")
 	print("<div id=\"vue-root\">")
+
+	projects = None
 	if handler.session['user']:
-		user = handler.session['user']
-		print(f"<su-header username=\"{user['username']}\" user-avatar=\"{user['avatar']}\"></su-header>")
-	else:
-		print("<su-header></su-header>")
+		jira = Jira.fromHandler(handler)
+		try:
+			projects = jira.getProjects()
+		except APIError:
+			pass
+	print(f"<su-header :projects={quoteattr(json.dumps(projects))}></su-header>")
 
 	print("<div class=\"content\">")
 	print(f"<h1>{handler.pageTitle}</h1>")
@@ -64,7 +69,19 @@ def header(handler, includes, components):
 def footer(handler, data = None):
 	print("</div>")
 	print("</div>")
+
+	globalData = {
+		'jiraUrl': config['jiraUrl'],
+	}
+	if handler.session['user']:
+		user = handler.session['user']
+		globalData['user'] = {
+			'username': user['username'],
+			'avatar': user['avatar'],
+		}
+
 	print("<script type=\"text/javascript\">")
+	print(f"Vue.prototype.$global = {json.dumps(globalData)};") # Accessed within templates using '$global'
 	print(f"new Vue({{ el: '#vue-root', data: function() {{ return {json.dumps(data or {})}; }}}});")
 	print("</script>")
 	print("</body>")

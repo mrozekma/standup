@@ -1,9 +1,8 @@
 from bleach import clean
 from os.path import isfile
-from pathlib import Path
-import re
 import sys
 
+from Jira import Jira, APIError
 from Log import console
 from wrappers import header, footer
 
@@ -27,15 +26,34 @@ class HTTPHandler(ParentHandler):
 		console('rorn', "%s - %s", self.address_string(), fmt % args)
 
 	def invokeHandler(self, handler, query):
+		user = self.session['user']
+		if user:
+			self.jira = Jira.fromHandler(self)
+			try:
+				user['jiraProfile'] = self.jira.get('api/myself', cacheRead = False)
+			except APIError as e:
+				if e.code == 401:
+					# OAuth token is expired
+					user = None
+					del self.session['user']
+
 		if 'name' in handler and handler['name'] == 'static':
 			self.wrappers = False
 			# self.log = False
 
-		if (not self.session['user']) and ('allowGuest' not in handler or not handler['allowGuest']):
+		if user:
+			if self.session['jiraCache']:
+				# Clear Jira cache on hard refresh
+				if 'view' in handler and self.headers.get('Cache-Control', None) == 'no-cache':
+					self.session['jiraCache'].clear()
+			else:
+				from Jira import Cache
+				self.session['jiraCache'] = Cache()
+		elif 'allowGuest' not in handler or not handler['allowGuest']:
 			print("<su-login></su-login>")
 			return
 
-		return ParentHandler.invokeHandler(self, handler, query)
+		ParentHandler.invokeHandler(self, handler, query)
 
 	def preprocessViewData(self, data):
 		data = data or {}
@@ -56,7 +74,7 @@ class HTTPHandler(ParentHandler):
 
 			if handler and 'view' in handler:
 				includes['js'].append(f"/views/{handler['view']}.js")
-				includes['css'].append(f"/views/{handler['view']}.css")
+				includes['less'].append(f"/views/{handler['view']}.less")
 
 			with ResponseWriter(storageType = bytes) as writer:
 				components = getattr(self, 'viewComponents', [])

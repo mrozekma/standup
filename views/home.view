@@ -1,29 +1,38 @@
 <view>
-    <vue-simple-spinner></vue-simple-spinner>
-    <su-callout type="info" title="Debug">Logged in as <b>{{ user.username }}</b></su-callout>
-    <su-callout type="info" title="Debug">
-        <pre>{{ apiTest }}</pre>
-    </su-callout>
+    <div v-for="project in projects" class="project">
+        <img class="avatar" v-bind:src="project.avatar">
+        <h2 class="name">{{ project.name }}</h2>
+        <template v-for="board in project.boards">
+            <a v-for="sprint in board.sprints" v-bind:href="'/sprint/' + sprint.id" class="btn btn-primary">{{ sprint.name }} ({{ sprint.startDate }} - {{ sprint.endDate}})</a>
+            <template v-for="board in project.boards">
+                <a v-bind:href="$global.jiraUrl + '/secure/RapidBoard.jspa?view=planning&rapidView=' + board.id" class="btn btn-default">Jira <b>{{ board.name }}</b> backlog</a>
+                <a v-bind:href="$global.jiraUrl + '/secure/RapidBoard.jspa?view=detail&rapidView=' + board.id" class="btn btn-default">Jira <b>{{ board.name }}</b> sprints</a>
+            </template>
+        </template>
+    </div>
+    <div class="clear"></div>
 </view>
 
-<style>
-    .vue-simple-spinner {
-        position: absolute;
-        bottom: 10px;
-        right: 10px;
-    }
-    .content {
-        position: relative;
+<style type="less">
+    .project {
+        height: 100px;
+
+        h2 {
+            margin-bottom: 5px;
+        }
+
+        img.avatar {
+            float: left;
+            clear: both;
+            width: 80px;
+            padding-right: 10px;
+        }
+
+        a.btn {
+            padding: 3px 6px;
+        }
     }
 </style>
 
 <script>
-    Vue.use(Toasted);
-    $(function() {
-        let toast = Vue.toasted.show("Toasted !!", {
-            theme: "primary",
-            position: "bottom-right",
-            duration : 5000
-        });
-    });
 </script>

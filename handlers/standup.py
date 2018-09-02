@@ -2,16 +2,12 @@ from textwrap import dedent
 
 from rorn import code
 
+from Jira import Jira
+
 @get('', view = 'home')
 def home(handler):
-	from Jira import Jira
 	jira = Jira.fromHandler(handler)
-	data = jira.get('myself')
-	return {
-		'apiTest': data,
-	}
-
-	return {}
+	return {'projects': jira.getProjects()}
 
 @get('code.css', allowGuest = True)
 def codeCSS(handler):
@@ -25,3 +21,15 @@ def codeCSS(handler):
 	.code_default.light { color: #000; }
 	.selected_line { background-color: #aa0000aa; }
 	"""))
+
+# For testing
+@get('api/(?P<route>.+)')
+def api(handler, route, **kw):
+	jira = Jira.fromHandler(handler)
+	data = jira.get(route, **kw)
+
+	import json, types
+	if isinstance(data, types.GeneratorType):
+		print("<i>Paginated result</i>")
+		data = list(data)
+	print(f"<pre>{json.dumps(data, indent = 4)}</pre>")
