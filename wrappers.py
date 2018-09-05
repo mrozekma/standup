@@ -63,7 +63,7 @@ def header(handler, includes, components):
 	print(f"<su-header :projects={quoteattr(json.dumps(projects))}></su-header>")
 
 	print("<div class=\"content\">")
-	print(f"<h1>{handler.pageTitle}</h1>")
+	print(f"<h1>{handler.pageSubtitle or handler.pageTitle}</h1>")
 
 def footer(handler, data = None):
 	print("</div>")

@@ -58,12 +58,13 @@ class OAuth:
 oauth = OAuth()
 
 class APIError(BaseException):
-	def __init__(self, code, message = None):
+	def __init__(self, code, message = None, url = None):
 		self.code = code
 		self.message = message
+		self.url = url
 
 	def __str__(self):
-		return self.message or f"API request failed, code {self.code}"
+		return (self.message or f"API request failed, code {self.code}") + (f" ({self.url})" if self.url else '')
 
 apiVersions = {
 	'api': '2',
@@ -91,8 +92,9 @@ class Jira:
 			version = apiVersions[namespace]
 		except KeyError:
 			raise ValueError(f"Unknown API namespace: {namespace}")
+		url = f"{config['jiraUrl']}/rest/{namespace}/{version}/{rest}"
 		req = requests.get(
-			f"{config['jiraUrl']}/rest/{namespace}/{version}/{rest}",
+			url,
 			params = params,
 			auth = self.auth,
 			headers = {
@@ -103,9 +105,12 @@ class Jira:
 			try:
 				message = req.json()['message']
 			except:
-				message = None
+				try:
+					message = req.json()['errorMessages'][0]
+				except:
+					message = None
 			console('jira api', f"{req}: {req.text}")
-			raise APIError(req.status_code, message)
+			raise APIError(req.status_code, message, url)
 
 		rtn = req.json()
 		if 'startAt' in rtn:
