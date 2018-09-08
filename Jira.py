@@ -2,53 +2,28 @@ from datetime import datetime, timedelta
 import re
 import requests, oauthlib, requests_oauthlib
 
+from Config import config
 from Log import console
 
-'''
-URL: http://localhost:8081/
-Create new link
-Continue
-
-Application Name: Standup
-Application Type: Generic Application
-Service Provider Name: a
-Consumer Key: b
-Shared secret: c
-Request Token URL: d
-Access token URL: e
-Authorize URL: f
-Create incoming link: yes
-Continue
-
-Consumer Key: b
-Consumer Name: g
-Public Key: oauth/pub.pem
-'''
-
-#TODO Move to a config file
-config = {
-	'localUrl': 'http://localhost:8081',
-	'jiraUrl': 'http://localhost:2990/jira',
-	'consumerKey': 'b',
-	'sharedSecret': 'c',
-}
-
-oauthUrl = f"{config['jiraUrl']}/plugins/servlet/oauth/%s"
+oauthUrl = f"{config.jiraUrl}/plugins/servlet/oauth/%s"
 
 class OAuth:
 	def __init__(self):
-		with open('oauth/priv.pem', 'r') as f:
-			privateKey = f.read()
 		self.commonArgs = {
-			'client_key': config['consumerKey'],
-			'client_secret': config['sharedSecret'],
-			'rsa_key': privateKey,
+			'client_key': config.consumerKey,
+			'client_secret': config.sharedSecret,
+			'rsa_key': config.privateKey.read_text(),
 			'signature_method': oauthlib.oauth1.SIGNATURE_RSA,
 		}
 
 	def authorize(self):
-		s = requests_oauthlib.OAuth1Session(callback_uri = f"{config['localUrl']}/login-finish", **self.commonArgs)
-		s.fetch_request_token(oauthUrl % 'request-token')
+		s = requests_oauthlib.OAuth1Session(callback_uri = f"{config.localUrl}/login-finish", **self.commonArgs)
+		try:
+			s.fetch_request_token(oauthUrl % 'request-token')
+		except requests_oauthlib.oauth1_session.TokenRequestDenied as e:
+			if 'consumer_key_unknown' in e.response.text:
+				raise RuntimeError("Jira didn't recognize the consumer key; likely no application link configured in Jira")
+			raise
 		return s.authorization_url(oauthUrl % 'authorize')
 
 	def exchange(self, oauth_token, oauth_verifier):
@@ -92,7 +67,7 @@ class Jira:
 			version = apiVersions[namespace]
 		except KeyError:
 			raise ValueError(f"Unknown API namespace: {namespace}")
-		url = f"{config['jiraUrl']}/rest/{namespace}/{version}/{rest}"
+		url = f"{config.jiraUrl}/rest/{namespace}/{version}/{rest}"
 		req = requests.get(
 			url,
 			params = params,
@@ -194,7 +169,7 @@ class Jira:
 		user = handler.session['user']
 		if not user:
 			raise RuntimeError("Not logged in")
-		return Jira(config['consumerKey'], config['sharedSecret'], user['oauth']['oauth_token'], user['oauth']['oauth_token_secret'], handler.session['jiraCache'])
+		return Jira(config.consumerKey, config.sharedSecret, user['oauth']['oauth_token'], user['oauth']['oauth_token_secret'], handler.session['jiraCache'])
 
 CACHE_LENGTH = timedelta(hours = 1)
 class Cache:

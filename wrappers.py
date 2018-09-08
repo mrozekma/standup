@@ -1,7 +1,8 @@
 import json
 from xml.sax.saxutils import quoteattr
 
-from Jira import Jira, APIError, config
+from Config import config
+from Jira import APIError
 
 def header(handler, includes, components):
 	print("<!DOCTYPE html>")
@@ -70,7 +71,7 @@ def footer(handler, data = None):
 	print("</div>")
 
 	globalData = {
-		'jiraUrl': config['jiraUrl'],
+		'jiraUrl': config.jiraUrl,
 	}
 	if handler.session['user']:
 		user = handler.session['user']

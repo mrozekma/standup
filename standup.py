@@ -1,11 +1,13 @@
+#!/usr/bin/env python3
+
 import os
-from os.path import abspath, dirname
 import signal
 import sys
 from threading import currentThread
 
-os.chdir(dirname(abspath(__file__)))
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
+from Config import config
 from HTTPHandler import HTTPHandler
 from rorn.HTTPServer import HTTPServer
 
@@ -16,7 +18,6 @@ from rorn.HTTPServer import HTTPServer
 from Log import console
 
 currentThread().name = 'main'
-PORT = 8081
 
 # When python is started in the background it ignores SIGINT instead of throwing a KeyboardInterrupt
 def signal_die(signum, frame):
@@ -25,7 +26,7 @@ def signal_die(signum, frame):
 signal.signal(signal.SIGINT, signal.default_int_handler)
 signal.signal(signal.SIGTERM, signal_die)
 
-server = HTTPServer(('', PORT), HTTPHandler)
+server = HTTPServer(('', config.localBindPort), HTTPHandler)
 HTTPHandler.enableStaticHandler('static')
 HTTPHandler.enableVue('components', 'views')
 try:

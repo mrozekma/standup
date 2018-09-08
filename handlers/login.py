@@ -4,7 +4,8 @@ from rorn.utils import done, redirect
 
 import requests, requests_oauthlib, oauthlib
 
-from Jira import config, oauth, Jira
+from Config import config
+from Jira import oauth, Jira
 
 @get('login', allowGuest = True)
 def login(handler):
@@ -19,7 +20,7 @@ def loginFinish(handler, oauth_token, oauth_verifier):
 
 	token = oauth.exchange(oauth_token, oauth_verifier)
 
-	jira = Jira(config['consumerKey'], config['sharedSecret'], token['oauth_token'], token['oauth_token_secret'])
+	jira = Jira(config.consumerKey, config.sharedSecret, token['oauth_token'], token['oauth_token_secret'])
 	myself = jira.get('api/myself')
 
 	handler.session['user'] = {
