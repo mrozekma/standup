@@ -61,7 +61,7 @@ class Jira:
 			if rtn:
 				return rtn
 
-		console('jira', f"API request: {route}")
+		console('jira', f"API request: {route} {params}")
 		namespace, rest = route.split('/', 1)
 		try:
 			version = apiVersions[namespace]

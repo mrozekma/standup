@@ -1,9 +1,55 @@
-<components>
-    su-issues
-</components>
-
 <view>
-    <su-issues :issues="issues" :parents="parents"></su-issues>
+    <h1 v-if="loaded">
+        {{ sprint_name }}
+        <button id="refresh-button" class="btn" @click="loadData">Refresh</button>
+    </h1>
+    <h1 v-else>Loading...</h1>
+
+    <table class="issues">
+        <tr>
+            <th></th>
+            <th></th>
+            <th>Key</th>
+            <!--<th></th>-->
+            <th>Summary</th>
+            <th>Assignee</th>
+            <th>Hours</th>
+        </tr>
+        <tr v-if="!loaded" class="loading-row">
+            <td colspan="6">
+                <vue-simple-spinner></vue-simple-spinner>
+            </td>
+        </tr>
+        <tr v-if="loaded && error">
+            <td colspan="6">
+                <su-callout type="danger" title="Error">
+                    {{ error }}
+                </su-callout>
+            </td>
+        </tr>
+        <tr v-if="loaded && !error" v-for="(issue, idx) in issuesOrdered" :data-id="issue.id" class="issue" :class="[`status-category-${issue.status.category}`, {sprint: issue.inSprint}]">
+            <td class="index"><span class="badge">{{ idx + 1 }}</span></td>
+            <td class="status"><img :src="`/static/images/status-${issue.status.category}.png`" :title="issue.status.name"></td>
+            <td class="key">{{ issue.key }}</td>
+            <!--<td class="expander"></td>-->
+            <td class="summary" :style="`padding-left: ${issue.indent * 30}px;`"><img :src="issue.type.icon" :title="issue.type.name" class="type"> {{ issue.summary }}</td>
+            <td v-if="issue.assignee" class="assignee">
+                <img :src="issue.assignee.avatar" class="avatar">
+                <div class="username">{{ issue.assignee.username }}</div>
+            </td>
+            <td v-else class="assignee">
+                Unassigned
+            </td>
+            <td class="hours">
+                <vue-simple-progress text-position="top" :text="formatSeconds(issue.remaining)" :val="Math.max(0, issue.estimate - issue.remaining)" :max="issue.estimate"></vue-simple-progress>
+                <!--
+                <div class="estimate">{{ formatSeconds(issue.estimate) }}</div>
+                <div class="remaining">{{ formatSeconds(issue.remaining) }}</div>
+                <button :data-test="issue" @click="() => foobar(issue)">Foobar</button>
+                -->
+            </td>
+        </tr>
+    </table>
 
     <div @contextmenu.prevent="$refs.ctxMenu.open">
         ...
@@ -19,3 +65,252 @@
 <script>
     Vue.use(VueContextMenu);
 </script>
+
+<script vue>
+    export default {
+        data: {
+            loaded: false,
+            error: null,
+            sprint_name: null,
+            issues: [],
+            parents: [],
+        },
+        mounted: function() {
+            this.loadData();
+        },
+        computed: {
+            issuesOrdered: function() {
+                var order = [];
+                var awaitingPlacement = [];
+
+                // Place all root elements and queue the rest
+                for(let issue of this.issues) {
+                    issue = Object.assign({}, issue, {inSprint: true, indent: 0});
+                    (issue.parent ? awaitingPlacement : order).push(issue);
+                }
+                for(let issue of this.parents) {
+                    issue = Object.assign({}, issue, {inSprint: false, indent: 0});
+                    (issue.parent ? awaitingPlacement : order).push(issue);
+                }
+
+                // On first pass, place all elements just below root. Then the elements just below those. Keep looping until everything is placed
+                while(awaitingPlacement.length > 0) {
+                    for(var i = 0; i < order.length; i++) {
+                        var parent = order[i];
+                        // console.log(i + ' -- ' + order.map(issue => issue.id) + ' -- ' + awaitingPlacement.map(issue => issue.id));
+
+                        // Split 'awaitingPlacement' into two lists:
+                        var placeNow = [], stillWaiting = [];
+                        awaitingPlacement.forEach(issue => ((issue['parent'] === parent.id) ? placeNow : stillWaiting).push(issue));
+
+                        if(placeNow.length > 0) {
+                            placeNow.forEach(issue => issue.indent = parent.indent + 1);
+                            order.splice.apply(order, [i + 1, 0, ...placeNow]);
+                            i += placeNow.length;
+                            awaitingPlacement = stillWaiting;
+                        }
+                    }
+                }
+
+                return order;
+            }
+        },
+        methods: {
+            loadData: function() {
+                var self = this;
+                self.loaded = false;
+                $.get({
+                    url: window.location + '/data',
+                    success: function(data) {
+                        self.error = null;
+                        self.sprint_name = data.sprint_name;
+                        self.issues = data.issues;
+                        self.parents = data.parents;
+                        self.loaded = true;
+                    },
+                    error: function(jq, type, desc) {
+                        console.error(type);
+                        console.error(desc);
+                        self.error = (type == 'error') ? jq.responseText : desc;
+                        if(!self.error) {
+                            self.error = 'Unknown error';
+                        }
+                        self.sprint_name = 'Error';
+                        self.loaded = true;
+                    }
+                })
+            },
+            formatSeconds: function(seconds) {
+                if(seconds < 60) {
+                    return 'Done';
+                }
+
+                // var weeks = Math.floor(seconds / 60 / 60 / 8 / 5);
+                // seconds -= weeks * 60 * 60 * 8 * 5;
+
+                // var days = Math.floor(seconds / 60 / 60 / 8);
+                // seconds -= days * 60 * 60 * 8;
+
+                var hours = Math.floor(seconds / 60 / 60);
+                seconds -= hours * 60 * 60;
+
+                var minutes = Math.floor(seconds / 60);
+                seconds -= minutes * 60;
+
+                // seconds should be 0 at this point; if not discard the rest
+
+                return [
+                    // weeks ? weeks + 'w' : null,
+                    // days ? days + 'd' : null,
+                    hours ? hours + 'h' : null,
+                    minutes ? minutes + 'm' : null,
+                ].filter(x => x).join(' ');
+            },
+            foobar: function(x) {
+                console.log(x);
+                x.remaining += 1 * 60 * 60;
+            }
+        }
+    }
+</script>
+
+<style type="less">
+    h1 #refresh-button {
+        float: right;
+    }
+
+    .issues {
+        width: 100%;
+        border-spacing: 0;
+
+        tr.loading-row td {
+            padding-top: 10px;
+        }
+
+        tr.issue {
+            &:hover td {
+                background-color: #d9edf7;
+                border-color: #d9edf7;
+            }
+
+            &:not(.sprint) {
+                opacity: .4;
+            }
+
+            &.status-category-indeterminate {
+                .key, .summary {
+                    font-weight: bold;
+                }
+            }
+
+            /*
+            &.status-category-done {
+                // Strikethrough. https://stackoverflow.com/a/19670807/309308
+                // Not sure I actually like how it looks
+                td {
+                    position: relative;
+                }
+                td:before {
+                    content: " ";
+                    position: absolute;
+                    top: 50%;
+                    left: 0;
+                    border-bottom: 1px solid #111;
+                    width: 100%;
+                }
+            }
+            */
+
+            td {
+                white-space: nowrap;
+                padding: 4px 1px;
+            }
+
+            .index {
+                text-align: right;
+                .badge {
+                    background-color: #3a87ad;
+                }
+            }
+
+            .status {
+                padding-left: 5px;
+                padding-right: 5px;
+            }
+
+            .key {
+                padding-right: 10px;
+            }
+
+            .summary {
+                width: 100%;
+            }
+
+            .assignee {
+                padding-right: 20px;
+                img {
+                    width: 16px;
+                    margin-right: 3px;
+                }
+                div.username {
+                    display: inline-block;
+                }
+            }
+
+            .hours {
+                .vue-simple-progress {
+                    width: 100px;
+                }
+                /*.estimate, .remaining {*/
+                /*display: inline-block;*/
+                /*}*/
+            }
+        }
+    }
+
+    /* // Don't think this can be done without subgrid support
+    .issues {
+        display: grid;
+        grid-template-areas: "status key expander type summary assignee hours";
+        grid-template-columns: max-content max-content max-content max-content auto max-content max-content;
+        .issue {
+            display: contents;
+            margin-bottom: 10px;
+            .status {
+                grid-area: status;
+            }
+            .key {
+                grid-area: key;
+            }
+            .expander {
+                grid-area: expander;
+            }
+            .type {
+                grid-area: type;
+            }
+            .summary {
+                grid-area: summary;
+            }
+            .assignee {
+                grid-area: assignee;
+                img {
+                    width: @icon-width;
+                    margin-right: 3px;
+                }
+                div.username {
+                    display: inline-block;
+                }
+            }
+            .hours {
+                grid-area: hours;
+                .estimate {
+                    display: inline-block;
+                }
+                .remaining {
+                    display: inline-block;
+                }
+            }
+        }
+    }
+    */
+</style>

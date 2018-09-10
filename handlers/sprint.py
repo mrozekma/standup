@@ -1,3 +1,7 @@
+import json
+
+from Jira import APIError
+
 def processIssue(jira, issue):
 	parent = None
 	for link in issue['fields']['issuelinks']:
@@ -42,16 +46,28 @@ def getParentIssues(jira, issues, existingIds = None):
 
 @get('sprint/(?P<id>[0-9]+)', view = 'sprint')
 def sprint(handler, id):
-	data = list(handler.jira.get(f"agile/sprint/{id}/issue"))
-	issues = list(processIssue(handler.jira, issue) for issue in data)
-	# Get parents that aren't in the sprint
-	parents = list(getParentIssues(handler.jira, issues))
+	handler.title(False)
+	return {} # Loaded via AJAX
 
-	# Every issue has the sprint info as one of the fields
-	if data:
-		sprint = data[0]['fields']['sprint']
-	else:
-		sprint = handler.jira.get(f"agile/sprint/{id}")
+@get('sprint/(?P<id>[0-9]+)/data')
+def sprintData(handler, id):
+	try:
+		data = list(handler.jira.get(f"agile/sprint/{id}/issue"))
+		issues = list(processIssue(handler.jira, issue) for issue in data)
+		# Get parents that aren't in the sprint
+		parents = list(getParentIssues(handler.jira, issues))
 
-	handler.title(sprint['name'])
-	return {'issues': issues, 'parents': parents}
+		# Every issue has the sprint info as one of the fields
+		if data:
+			sprint = data[0]['fields']['sprint']
+		else:
+			sprint = handler.jira.get(f"agile/sprint/{id}")
+
+		rtn = {'sprint_name': sprint['name'], 'issues': issues, 'parents': parents}
+	except APIError as e:
+		rtn = str(e)
+		handler.responseCode = 400
+
+	print(json.dumps(rtn))
+	handler.wrappers = False
+	handler.contentType = 'application/json'

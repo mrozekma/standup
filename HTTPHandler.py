@@ -27,15 +27,15 @@ class HTTPHandler(ParentHandler):
 
 	def processingRequest(self):
 		if self.session['user']:
-			self.jira = Jira.fromHandler(self)
 			if self.session['jiraCache'] is None:
 				self.session['jiraCache'] = Cache()
+			self.jira = Jira.fromHandler(self)
 
 	def invokeHandler(self, handler, query):
 		user = self.session['user']
 		if user:
 			try:
-				user['jiraProfile'] = self.jira.get('api/myself', cacheRead = False)
+				user['jiraProfile'] = self.jira.get('api/myself', cacheRead = not hasattr(self, 'view'))
 			except APIError as e:
 				if e.code == 401:
 					# OAuth token is expired
@@ -78,21 +78,22 @@ class HTTPHandler(ParentHandler):
 				includes['less'].append(f"/views/{handler['view']}.less")
 
 			with ResponseWriter(storageType = bytes) as writer:
-				components = getattr(self, 'viewComponents', [])
+				view = getattr(self, 'view', None)
 				data = self.preprocessViewData(getattr(self, 'viewData', {}))
 
-				header(self, includes, components)
+				header(self, includes, view)
 				sys.stdout.write(self.response)
-				footer(self, data)
+				footer(self, data, view)
 				self.response = writer.done()
 
-	def title(self, title, path = None):
+	def title(self, title):
 		if title is None:
 			self.pageTitle = TITLE
 			self.pageSubtitle = ''
 		else:
 			self.pageSubtitle = title
-			self.pageTitle = f"{self.pageSubtitle} - {TITLE}"
+			# title isn't None, but it could be some other falsey value
+			self.pageTitle = f"{title} - {TITLE}" if title else TITLE
 
 	def jsOnReady(self, js):
 		self.wrapperData['jsOnReady'].append(js)

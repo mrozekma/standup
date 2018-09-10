@@ -1,10 +1,11 @@
 import json
+from textwrap import dedent
 from xml.sax.saxutils import quoteattr
 
 from Config import config
 from Jira import APIError
 
-def header(handler, includes, components):
+def header(handler, includes, view):
 	print("<!DOCTYPE html>")
 	print("<html>")
 	print("<head>")
@@ -24,6 +25,7 @@ def header(handler, includes, components):
 	print("<script src=\"/static/third-party/bootstrap.min.js\"></script>")
 
 	# Vue
+	components = view['components'] if view else []
 	print("<script src=\"/static/third-party/vue/vue.js\"></script>")
 	print("<script src=\"/static/third-party/vue/basic.js\"></script>")
 	print(f"<script src=\"/components.js?{'&'.join(components)}\"></script>")
@@ -64,9 +66,10 @@ def header(handler, includes, components):
 	print(f"<su-header :projects={quoteattr(json.dumps(projects))}></su-header>")
 
 	print("<div class=\"content\">")
-	print(f"<h1>{handler.pageSubtitle or handler.pageTitle}</h1>")
+	if handler.pageSubtitle is not False:
+		print(f"<h1>{handler.pageSubtitle or handler.pageTitle}</h1>")
 
-def footer(handler, data = None):
+def footer(handler, data, view):
 	print("</div>")
 	print("</div>")
 
@@ -80,9 +83,22 @@ def footer(handler, data = None):
 			'avatar': user['avatar'],
 		}
 
-	print("<script type=\"text/javascript\">")
-	print(f"Vue.prototype.$global = {json.dumps(globalData)};") # Accessed within templates using '$global'
-	print(f"new Vue({{ el: '#vue-root', data: function() {{ return {json.dumps(data or {})}; }}}});")
-	print("</script>")
-	print("</body>")
-	print("</html>")
+	print(dedent(f"""
+	<script type="text/javascript">
+	Vue.config.productionTip = false;
+	Vue.prototype.$global = {json.dumps(globalData)};
+	(function() {{
+		var viewInfo = {view.get('script-vue', '{}') if view else '{}'};
+		viewInfo.el = '#vue-root';
+		var backendData = {json.dumps(data or {})};
+		if(!viewInfo.data) {{
+			viewInfo.data = backendData;
+		}} else {{
+			Object.assign(viewInfo.data, backendData);
+		}}
+		new Vue(viewInfo);
+	}})();
+	</script>
+	</body>
+	</html>
+	"""))
