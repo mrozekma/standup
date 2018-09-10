@@ -35,7 +35,7 @@ class HTTPHandler(ParentHandler):
 		user = self.session['user']
 		if user:
 			try:
-				user['jiraProfile'] = self.jira.get('api/myself', cacheRead = not hasattr(self, 'view'))
+				user['jiraProfile'] = self.jira.get('api/myself', cacheRead = 'view' not in handler)
 			except APIError as e:
 				if e.code == 401:
 					# OAuth token is expired

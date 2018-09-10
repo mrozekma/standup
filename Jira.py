@@ -52,16 +52,18 @@ class Jira:
 		self.auth = requests_oauthlib.OAuth1(resource_owner_key = userToken, resource_owner_secret = userSecret, **oauth.commonArgs)
 		self.cache = cache
 
-	def get(self, route, *, cacheRead = True, cacheWrite = True, **params):
+	def get(self, route, *, cacheRead = False, cacheWrite = True, **params):
 		if self.cache is None:
 			cacheRead = cacheWrite = False
 
 		if cacheRead:
 			rtn = self.cache[(route, params)]
-			if rtn:
+			if rtn is not None:
 				return rtn
 
-		console('jira', f"API request: {route} {params}")
+		console('jira api', f"API request: {route} {params}")
+		# import sys, traceback
+		# traceback.print_stack(file = sys.__stdout__)
 		namespace, rest = route.split('/', 1)
 		try:
 			version = apiVersions[namespace]
@@ -144,9 +146,9 @@ class Jira:
 					'name': sprint['name'],
 					'startDate': convertDate(sprint['startDate']),
 					'endDate': convertDate(sprint['endDate']),
-				} for sprint in self.get(f"agile/board/{board['id']}/sprint")],
-			} for board in self.get('agile/board', projectKeyOrId = project['key'], type = 'scrum')],
-		} for project in self.get('api/project', expand = 'lead')]
+				} for sprint in self.get(f"agile/board/{board['id']}/sprint", cacheRead = True)],
+			} for board in self.get('agile/board', projectKeyOrId = project['key'], type = 'scrum', cacheRead = True)],
+		} for project in self.get('api/project', expand = 'lead', cacheRead = True)]
 
 	def getLargestAvatar(self, avatars):
 		pat = re.compile('([0-9]+)x([0-9]+)')
