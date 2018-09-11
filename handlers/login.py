@@ -1,8 +1,4 @@
-from bleach import clean
-import re
 from rorn.utils import done, redirect
-
-import requests, requests_oauthlib, oauthlib
 
 from Config import config
 from Jira import oauth, Jira

@@ -101,7 +101,7 @@ class HTTPHandler(ParentHandler):
 	def die(self, title, text = None):
 		if text is None:
 			title, text = '', title
-		print(f"""<su-callout type="danger" title="{title}">{clean(text)}</su-callout>""")
+		print(f"""<su-callout type="danger" title="{title}">{clean(text, [])}</su-callout>""")
 		done()
 
 from handlers import *

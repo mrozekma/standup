@@ -1,4 +1,5 @@
 bleach
+pygments
 
 oauthlib
 requests
