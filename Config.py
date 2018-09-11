@@ -28,12 +28,15 @@ class Config:
 		self.parser = ConfigParser()
 
 	def load(self, filename = FILENAME):
-		self.parser.read(filename)
+		if not os.path.exists(filename):
+			raise FileNotFoundError("Configuration file not found")
+		if filename not in self.parser.read(filename):
+			raise SyntaxError("Malformed configuration file (failed to parse)")
 		try:
 			for section, name in entries:
 				self.parser[section][name]
 		except KeyError:
-			raise RuntimeError("Malformed configuration file")
+			raise RuntimeError("Malformed configuration file (missing keys)")
 
 	def save(self, filename = FILENAME):
 		with open(filename, 'w') as f:

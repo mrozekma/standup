@@ -59,7 +59,7 @@ except:
 
 config.localBindPort = ask("HTTP port", 80)
 
-dfltUrl = f"http://{socket.getfqdn()}"
+dfltUrl = f"http://{socket.getfqdn().lower()}"
 if config.localBindPort != 80:
 	dfltUrl += f":{config.localBindPort}"
 
@@ -78,7 +78,7 @@ else:
 		'openssl genrsa -out priv.pem 1024',
 		'openssl req -newkey rsa:1024 -x509 -key priv.pem -out pub.cer -days 365',
 		'openssl pkcs8 -topk8 -nocrypt -in priv.pem -out priv.pkcs8',
-		'openssl x509 -pubkey -noout -in pub.cer -out pub.pem',
+		'openssl x509 -pubkey -noout -in pub.cer > pub.pem',
 	]
 	for cmd in cmds:
 		subprocess.call(cmd, shell = True, cwd = dir)

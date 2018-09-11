@@ -3,3 +3,7 @@ bleach
 oauthlib
 requests
 requests_oauthlib
+
+# oauthlib has some secret dependencies:
+cryptography
+pyjwt
