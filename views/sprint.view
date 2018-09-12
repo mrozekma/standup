@@ -28,8 +28,11 @@
             </td>
         </tr>
         <tr v-if="loaded && !error" v-for="(issue, idx) in issuesOrdered" :data-id="issue.id" class="issue" :class="[`status-category-${issue.status.category}`, {sprint: issue.inSprint}]">
-            <td class="index"><span class="badge">{{ idx + 1 }}</span></td>
-            <td class="status"><img :src="`/static/images/status-${issue.status.category}.png`" :title="issue.status.name"></td>
+            <td class="index">
+                <vue-simple-spinner v-if="processing.includes(issue)" size="small"></vue-simple-spinner>
+                <span v-else class="badge">{{ idx + 1 }}</span>
+            </td>
+            <td class="status" @click.prevent="$refs.status_menu[idx].open"><img :src="`/static/images/status-${issue.status.category}.png`" :title="issue.status.name"></td>
             <td class="key">{{ issue.key }}</td>
             <!--<td class="expander"></td>-->
             <td class="summary" :style="`padding-left: ${issue.indent * 30}px;`"><img :src="issue.type.icon" :title="issue.type.name" class="type"> {{ issue.summary }}</td>
@@ -42,38 +45,35 @@
             </td>
             <td class="hours">
                 <vue-simple-progress text-position="top" :text="formatSeconds(issue.remaining)" :val="Math.max(0, issue.estimate - issue.remaining)" :max="issue.estimate"></vue-simple-progress>
-                <!--
-                <div class="estimate">{{ formatSeconds(issue.estimate) }}</div>
-                <div class="remaining">{{ formatSeconds(issue.remaining) }}</div>
-                <button :data-test="issue" @click="() => foobar(issue)">Foobar</button>
-                -->
             </td>
         </tr>
     </table>
 
-    <div @contextmenu.prevent="$refs.ctxMenu.open">
-        ...
-    </div>
-
-    <context-menu id="context-menu" ref="ctxMenu">
-        <li>option 1</li>
-        <li class="disabled">option 2</li>
-        <li>option 3</li>
-    </context-menu>
+    <vue-context v-for="issue in issuesOrdered" :key="issue.id" ref="status_menu">
+        <ul>
+            <li v-for="transition in issue.transitions" @click="doTransition(issue, transition)"><img :src="`/static/images/status-${transition.status.category}.png`" :title="transition.status.name">&nbsp;{{ transition.name }}</li>
+        </ul>
+    </vue-context>
 </view>
 
 <script>
-    Vue.use(VueContextMenu);
+    Vue.use(Toasted, {
+       iconPack: 'fontawesome'
+    });
 </script>
 
 <script vue>
     export default {
+        components: {
+            VueContext
+        },
         data: {
             loaded: false,
             error: null,
             sprint_name: null,
             issues: [],
             parents: [],
+            processing: [], // issues currently processing. Sets aren't reactive :(
         },
         mounted: function() {
             this.loadData();
@@ -97,7 +97,6 @@
                 while(awaitingPlacement.length > 0) {
                     for(var i = 0; i < order.length; i++) {
                         var parent = order[i];
-                        // console.log(i + ' -- ' + order.map(issue => issue.id) + ' -- ' + awaitingPlacement.map(issue => issue.id));
 
                         // Split 'awaitingPlacement' into two lists:
                         var placeNow = [], stillWaiting = [];
@@ -126,12 +125,13 @@
                         self.sprint_name = data.sprint_name;
                         self.issues = data.issues;
                         self.parents = data.parents;
+                        self.processing.splice(0, self.processing.length);
                         self.loaded = true;
                     },
-                    error: function(jq, type, desc) {
+                    error: function(xhr, type, desc) {
                         console.error(type);
                         console.error(desc);
-                        self.error = (type == 'error') ? jq.responseText : desc;
+                        self.error = (type == 'error') ? xhr.responseText : desc;
                         if(!self.error) {
                             self.error = 'Unknown error';
                         }
@@ -166,9 +166,45 @@
                     minutes ? minutes + 'm' : null,
                 ].filter(x => x).join(' ');
             },
-            foobar: function(x) {
-                console.log(x);
-                x.remaining += 1 * 60 * 60;
+            doUpdate: function(issue, data, onSuccess) {
+                var self = this;
+                data.issue = issue.id;
+                self.processing.push(issue);
+                $.post({
+                    url: window.location + '/update',
+                    data: data,
+                    complete: function(xhr, status) {
+                        self.processing.splice(self.processing.indexOf(issue), 1);
+                    },
+                    success: function(data) {
+                        onSuccess(data);
+                    },
+                    error: function(xhr, type, desc) {
+                        console.error(type);
+                        console.error(desc);
+                        var error = (type == 'error') ? xhr.responseText : desc;
+                        if(!error) {
+                            error = 'Unknown error';
+                        }
+                        Vue.toasted.show(`Failed to update task: ${error}`, {
+                            position: 'bottom-center',
+                            duration: 10000,
+                            icon: 'exclamation-circle',
+                            type: 'error',
+                            closeOnSwipe: true,
+                        });
+                    }
+                })
+            },
+            doTransition: function(issue, transition) {
+                this.doUpdate(
+                    issue,
+                    {transition: transition.id},
+                    function(data) {
+                        issue.status = transition.status;
+                        issue.transitions = data;
+                    },
+                );
             }
         }
     }
@@ -313,4 +349,14 @@
         }
     }
     */
+
+    .v-context {
+        width: auto !important;
+        ul {
+            padding: 0 !important;
+            li {
+                padding: 10px !important;
+            }
+        }
+    }
 </style>

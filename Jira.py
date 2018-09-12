@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+from functools import partialmethod
+import json
 import re
 import requests, oauthlib, requests_oauthlib
 
@@ -52,7 +54,9 @@ class Jira:
 		self.auth = requests_oauthlib.OAuth1(resource_owner_key = userToken, resource_owner_secret = userSecret, **oauth.commonArgs)
 		self.cache = cache
 
-	def get(self, route, *, cacheRead = False, cacheWrite = True, **params):
+	def request(self, method, route, *, cacheRead = False, cacheWrite = None, data = None, **params):
+		if cacheWrite is None:
+			cacheWrite = (method == 'get')
 		if self.cache is None:
 			cacheRead = cacheWrite = False
 
@@ -61,7 +65,7 @@ class Jira:
 			if rtn is not None:
 				return rtn
 
-		console('jira api', f"API request: {route} {params}")
+		console('jira api', f"API request: {route} {params} {data}")
 		# import sys, traceback
 		# traceback.print_stack(file = sys.__stdout__)
 		namespace, rest = route.split('/', 1)
@@ -70,14 +74,19 @@ class Jira:
 		except KeyError:
 			raise ValueError(f"Unknown API namespace: {namespace}")
 		url = f"{config.jiraUrl}/rest/{namespace}/{version}/{rest}"
-		req = requests.get(
+		req = requests.request(
+			method,
 			url,
 			params = params,
+			data = json.dumps(data) if data else None,
 			auth = self.auth,
 			headers = {
 				'Accept': 'application/json',
+				'Content-Type': 'application/json',
 			},
 		)
+		if req.status_code == 204:
+			return None
 		if req.status_code != 200:
 			try:
 				message = req.json()['message']
@@ -103,6 +112,9 @@ class Jira:
 			if cacheWrite:
 				self.cache[(route, params)] = rtn
 			return rtn
+
+	get = partialmethod(request, 'get')
+	post = partialmethod(request, 'post', cacheRead = False, cacheWrite = False)
 
 	def paginate(self, route, params, firstPage, cacheWrite):
 		# First, determine the key the actual values are stored at.
