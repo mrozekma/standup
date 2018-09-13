@@ -47,8 +47,8 @@ class HTTPHandler(ParentHandler):
 			# self.log = False
 
 		if user:
-			# Clear Jira cache on hard refresh. Only count hard refreshes of view-backed pages, since some normal requests are sent no-cache (e.g. favicon)
-			if 'view' in handler and self.headers.get('Cache-Control', None) == 'no-cache':
+			# Clear Jira cache on hard refresh. Exclude static loads because some are sent no-cache (e.g. favicon)
+			if handler.get('name', None) != 'static' and self.headers.get('Cache-Control', None) == 'no-cache':
 				self.session['jiraCache'].clear()
 		elif 'allowGuest' not in handler or not handler['allowGuest']:
 			print("<su-login></su-login>")

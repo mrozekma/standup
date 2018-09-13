@@ -60,20 +60,26 @@ class Jira:
 		if self.cache is None:
 			cacheRead = cacheWrite = False
 
-		if cacheRead:
-			rtn = self.cache[(route, params)]
-			if rtn is not None:
-				return rtn
-
-		console('jira api', f"API request: {route} {params} {data}")
-		# import sys, traceback
-		# traceback.print_stack(file = sys.__stdout__)
 		namespace, rest = route.split('/', 1)
 		try:
 			version = apiVersions[namespace]
 		except KeyError:
 			raise ValueError(f"Unknown API namespace: {namespace}")
 		url = f"{config.jiraUrl}/rest/{namespace}/{version}/{rest}"
+		return self.load(method, url, cacheRead = cacheRead, cacheWrite = cacheWrite, data = data, **params)
+
+	def load(self, method, url, *, cacheRead = False, cacheWrite = None, data = None, **params):
+		if cacheWrite is None:
+			cacheWrite = (method == 'get')
+		if self.cache is None:
+			cacheRead = cacheWrite = False
+
+		if cacheRead:
+			rtn = self.cache[url]
+			if rtn is not None:
+				return rtn
+
+		console('jira api', f"API request: {url} {params} {data}")
 		req = requests.request(
 			method,
 			url,
@@ -99,24 +105,25 @@ class Jira:
 			raise APIError(req.status_code, message, url)
 
 		rtn = req.json()
-		if 'startAt' in rtn:
+		if method == 'get' and 'startAt' in rtn:
 			# Result is paginated
 			if 'startAt' in params:
 				# This is one page of a paginated request being called from paginate(), just return it
 				return rtn
 			else:
 				# This is the beginning of a paginated request
-				return self.paginate(route, params, rtn, cacheWrite)
+				return self.paginate(url, params, rtn, cacheWrite)
 		else:
 			# Result is not paginated, just return the whole thing
 			if cacheWrite:
-				self.cache[(route, params)] = rtn
+				self.cache[url] = rtn
 			return rtn
 
 	get = partialmethod(request, 'get')
 	post = partialmethod(request, 'post', cacheRead = False, cacheWrite = False)
+	put = partialmethod(request, 'put', cacheRead = False, cacheWrite = False)
 
-	def paginate(self, route, params, firstPage, cacheWrite):
+	def paginate(self, url, params, firstPage, cacheWrite):
 		# First, determine the key the actual values are stored at.
 		# It's supposed to be 'values'
 		if 'values' in firstPage:
@@ -135,13 +142,13 @@ class Jira:
 		page = firstPage
 		# Sometimes 'total' isn't in the result, even though Atlassian claims it will be. I think this happens when Jira finishes caching a result and it becomes no longer paginated even though it started that way
 		while len(page[key]) > 0 and ('total' not in page or len(wholeList) < page['total']):
-			page = self.get(route, startAt = page['startAt'] + len(page[key]), **params)
+			page = self.load('get', url, startAt = page['startAt'] + len(page[key]), **params)
 			wholeList += page[key]
 			yield from page[key]
 
 		# Cache the entire result
 		if cacheWrite:
-			self.cache[(route, params)] = wholeList
+			self.cache[url] = wholeList
 
 	def getProjects(self):
 		convertDate = lambda ts: self.parseTimestamp(ts).strftime('%d %b').lstrip('0')

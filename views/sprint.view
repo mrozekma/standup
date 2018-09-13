@@ -14,6 +14,7 @@
             <th>Summary</th>
             <th>Assignee</th>
             <th>Hours</th>
+            <th></th>
         </tr>
         <tr v-if="!loaded" class="loading-row">
             <td colspan="6">
@@ -36,22 +37,32 @@
             <td class="key">{{ issue.key }}</td>
             <!--<td class="expander"></td>-->
             <td class="summary" :style="`padding-left: ${issue.indent * 30}px;`"><img :src="issue.type.icon" :title="issue.type.name" class="type"> {{ issue.summary }}</td>
-            <td v-if="issue.assignee" class="assignee">
+            <td v-if="issue.assignee" class="assignee" @click.prevent="$refs.assignee_menu[idx].open">
                 <img :src="issue.assignee.avatar" class="avatar">
                 <div class="username">{{ issue.assignee.username }}</div>
             </td>
-            <td v-else class="assignee">
+            <td v-else class="assignee" @click.prevent="$refs.assignee_menu.open">
                 Unassigned
             </td>
             <td class="hours">
                 <vue-simple-progress text-position="top" :text="formatSeconds(issue.remaining)" :val="Math.max(0, issue.estimate - issue.remaining)" :max="issue.estimate"></vue-simple-progress>
             </td>
+            <td class="links">
+                <a :href="`${$global.jiraUrl}/browse/${issue.key}`" title="View on Jira" target="_blank"><img :src="`${$global.jiraUrl}/images/64jira.png`"></a>
+            </td>
         </tr>
     </table>
 
-    <vue-context v-for="issue in issuesOrdered" :key="issue.id" ref="status_menu">
+    <vue-context v-for="issue in issuesOrdered" :key="`status-menu-${issue.id}`" ref="status_menu">
         <ul>
             <li v-for="transition in issue.transitions" @click="doTransition(issue, transition)"><img :src="`/static/images/status-${transition.status.category}.png`" :title="transition.status.name">&nbsp;{{ transition.name }}</li>
+        </ul>
+    </vue-context>
+
+    <!--TODO Should be possible to only have one menu, but need to figure out which issue was clicked -->
+    <vue-context v-for="issue in issuesOrdered" :key="`assignee-menu-${issue.id}`" ref="assignee_menu" class="assignee-menu">
+        <ul>
+            <li v-for="member in members" @click="doAssign(issue, member)"><img :src="member.avatar">{{ member.username }}</li>
         </ul>
     </vue-context>
 </view>
@@ -71,6 +82,7 @@
             loaded: false,
             error: null,
             sprint_name: null,
+            members: [],
             issues: [],
             parents: [],
             processing: [], // issues currently processing. Sets aren't reactive :(
@@ -123,6 +135,7 @@
                     success: function(data) {
                         self.error = null;
                         self.sprint_name = data.sprint_name;
+                        self.members = data.members;
                         self.issues = data.issues;
                         self.parents = data.parents;
                         self.processing.splice(0, self.processing.length);
@@ -205,7 +218,16 @@
                         issue.transitions = data;
                     },
                 );
-            }
+            },
+            doAssign: function(issue, user) {
+                this.doUpdate(
+                    issue,
+                    {assignee: user.username},
+                    function(data) {
+                        issue.assignee = user;
+                    },
+                );
+            },
         }
     }
 </script>
@@ -260,6 +282,11 @@
             td {
                 white-space: nowrap;
                 padding: 4px 1px;
+
+                img {
+                    position: relative;
+                    top: -1px;
+                }
             }
 
             .index {
@@ -300,6 +327,13 @@
                 /*.estimate, .remaining {*/
                 /*display: inline-block;*/
                 /*}*/
+            }
+
+            .links {
+                padding: 0 10px;
+                img {
+                    width: 16px;
+                }
             }
         }
     }
@@ -356,7 +390,19 @@
             padding: 0 !important;
             li {
                 padding: 10px !important;
+                img {
+                    position: relative;
+                    top: -2px;
+                }
+            }
+        }
+
+        &.assignee-menu {
+            img {
+                width: 16px;
+                margin-right: 3px;
             }
         }
     }
+
 </style>

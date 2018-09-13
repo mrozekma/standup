@@ -55,6 +55,28 @@ def getParentIssues(jira, issues, existingIds = None):
 			existingIds.add(parent['id'])
 			yield from getParentIssues(jira, [parent], existingIds)
 
+def getMembers(jira, sprintId):
+	# This is ridiculously complicated:
+
+	# Get the board from the sprint
+	boardId = jira.get(f"agile/sprint/{sprintId}", cacheRead = True)['originBoardId']
+	# Get the projects from the board
+	projectIds = [project['id'] for project in jira.get(f"agile/board/{boardId}/project", cacheRead = True)]
+	# Get the roles from the projects
+	roleUrls = [url for projectId in projectIds for name, url in jira.get(f"api/project/{projectId}", cacheRead = True)['roles'].items()]
+	# Get the actors from the roles
+	actors = [actor for url in roleUrls for actor in jira.load('get', url, cacheRead = True)['actors']]
+	# Get users from the actors ({username: avatarUrl})
+	directUsers = {actor['name']: actor['avatarUrl'] for actor in actors if actor['type'] == 'atlassian-user-role-actor'}
+	# Get group names from the actors
+	groups = {actor['name'] for actor in actors if actor['type'] == 'atlassian-group-role-actor'}
+	# Get users from the groups
+	indirectUsers = {user['name']: jira.getLargestAvatar(user['avatarUrls']) for groupname in groups for user in jira.get("api/group", groupname = groupname, expand = 'users', cacheRead = True)['users']['items']}
+
+	users = {**directUsers, **indirectUsers}
+	userList = [{'username': name, 'avatar': avatar} for (name, avatar) in users.items()]
+	return sorted(userList, key = lambda user: user['username'])
+
 @get('sprint/(?P<id>[0-9]+)', view = 'sprint')
 def sprint(handler, id):
 	handler.title(False)
@@ -62,6 +84,8 @@ def sprint(handler, id):
 
 @get('sprint/(?P<id>[0-9]+)/data')
 def sprintData(handler, id):
+	handler.wrappers = False
+
 	try:
 		data = list(handler.jira.get(f"agile/sprint/{id}/issue", expand = 'transitions'))
 		issues = list(processIssue(handler.jira, issue) for issue in data)
@@ -74,17 +98,15 @@ def sprintData(handler, id):
 		else:
 			sprint = handler.jira.get(f"agile/sprint/{id}")
 
-		rtn = {'sprint_name': sprint['name'], 'issues': issues, 'parents': parents}
+		rtn = {'sprint_name': sprint['name'], 'members': getMembers(handler.jira, id), 'issues': issues, 'parents': parents}
+		print(json.dumps(rtn))
+		handler.contentType = 'application/json'
 	except APIError as e:
-		rtn = str(e)
+		print(str(e))
 		handler.responseCode = 400
 
-	print(json.dumps(rtn))
-	handler.wrappers = False
-	handler.contentType = 'application/json'
-
 @post('sprint/(?P<id>[0-9]+)/update')
-def sprintUpdate(handler, id, p_issue, p_transition = None):
+def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None):
 	handler.wrappers = False
 	p_issue = int(p_issue)
 
@@ -94,9 +116,11 @@ def sprintUpdate(handler, id, p_issue, p_transition = None):
 			data = handler.jira.get(f"api/issue/{p_issue}/transitions")
 			print(json.dumps(formatTransitions(data['transitions'])))
 			handler.contentType = 'application/json'
+		elif p_assignee is not None:
+			handler.jira.put(f"api/issue/{p_issue}", data = {'fields': {'assignee': {'name': str(p_assignee)}}})
 		else:
 			handler.responseCode = 400
 			print("No update")
-	except APIError as e:
+	except BaseException as e:
 		handler.responseCode = 400
 		print(str(e))
