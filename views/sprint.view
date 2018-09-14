@@ -1,3 +1,7 @@
+<components>
+    su-context-menu-item
+</components>
+
 <view>
     <h1 v-if="loaded">
         {{ sprint_name }}
@@ -33,15 +37,15 @@
                 <vue-simple-spinner v-if="processing.includes(issue)" size="small"></vue-simple-spinner>
                 <span v-else class="badge">{{ idx + 1 }}</span>
             </td>
-            <td class="status" @click.prevent="$refs.status_menu[idx].open"><img :src="`/static/images/status-${issue.status.category}.png`" :title="issue.status.name"></td>
+            <td class="status" @click.prevent="popup(issue, 'status_menu', $event)"><img :src="`/static/images/status-${issue.status.category}.png`" :title="issue.status.name"></td>
             <td class="key">{{ issue.key }}</td>
             <!--<td class="expander"></td>-->
             <td class="summary" :style="`padding-left: ${issue.indent * 30}px;`"><img :src="issue.type.icon" :title="issue.type.name" class="type"> {{ issue.summary }}</td>
-            <td v-if="issue.assignee" class="assignee" @click.prevent="$refs.assignee_menu[idx].open">
+            <td v-if="issue.assignee" class="assignee" @click.prevent="popup(issue, 'assignee_menu', $event)">
                 <img :src="issue.assignee.avatar" class="avatar">
-                <div class="username">{{ issue.assignee.username }}</div>
+                <div class="name">{{ issue.assignee.username }}</div>
             </td>
-            <td v-else class="assignee" @click.prevent="$refs.assignee_menu.open">
+            <td v-else class="assignee" @click.prevent="popup(issue, 'assignee_menu', $event)">
                 Unassigned
             </td>
             <td class="hours">
@@ -53,16 +57,37 @@
         </tr>
     </table>
 
-    <vue-context v-for="issue in issuesOrdered" :key="`status-menu-${issue.id}`" ref="status_menu">
+    <vue-context v-if="menuIssue" ref="status_menu" class="status-menu">
         <ul>
-            <li v-for="transition in issue.transitions" @click="doTransition(issue, transition)"><img :src="`/static/images/status-${transition.status.category}.png`" :title="transition.status.name">&nbsp;{{ transition.name }}</li>
+            <su-context-menu-item
+                    v-for="transition in menuIssue.transitions"
+                    :key="`status-item-${transition.name}`"
+                    :icon="`/static/images/status-${transition.status.category}.png`"
+                    :title="transition.status.name"
+                    :text="transition.name"
+                    @click="doTransition(menuIssue, transition)"
+            ></su-context-menu-item>
         </ul>
     </vue-context>
 
-    <!--TODO Should be possible to only have one menu, but need to figure out which issue was clicked -->
-    <vue-context v-for="issue in issuesOrdered" :key="`assignee-menu-${issue.id}`" ref="assignee_menu" class="assignee-menu">
+    <vue-context v-if="menuIssue" ref="assignee_menu" class="assignee-menu">
         <ul>
-            <li v-for="member in members" @click="doAssign(issue, member)"><img :src="member.avatar">{{ member.username }}</li>
+            <!-- Current user -->
+            <su-context-menu-item
+                v-if="menuIssue.assignee && menuIssue.assignee.username != $global.user.username"
+                :icon="$global.user.avatar"
+                :text="$global.user.username"
+                @click="doAssign(menuIssue, $global.user)"
+                style="border-bottom: 1px solid #bdbdbd"
+            ></su-context-menu-item>
+            <su-context-menu-item
+                v-for="member in members"
+                v-if="member.username != $global.user.username && (!menuIssue.assignee || member.username != menuIssue.assignee.username)"
+                :key="`assignee-item-${member.username}`"
+                :icon="member.avatar"
+                :text="member.username"
+                @click="doAssign(menuIssue, member)"
+            ></su-context-menu-item>
         </ul>
     </vue-context>
 </view>
@@ -75,17 +100,23 @@
 
 <script vue>
     export default {
+        //TODO Make this work? Would be before the export default
+        // import SuContextMenuItem from "../components/su-context-menu-item";
         components: {
+        //     SuContextMenuItem,
             VueContext
         },
         data: {
-            loaded: false,
-            error: null,
+            // Loaded via AJAX
             sprint_name: null,
             members: [],
             issues: [],
             parents: [],
+
+            loaded: false,
+            error: null,
             processing: [], // issues currently processing. Sets aren't reactive :(
+            menuIssue: null, // issue we're showing a context menu for
         },
         mounted: function() {
             this.loadData();
@@ -178,6 +209,11 @@
                     hours ? hours + 'h' : null,
                     minutes ? minutes + 'm' : null,
                 ].filter(x => x).join(' ');
+            },
+            popup: function(issue, menuName, e) {
+                this.menuIssue = issue;
+                // Need to render so the menu will be created now that menuIssue is non-null
+                this.$nextTick(() => this.$refs[menuName].open(e));
             },
             doUpdate: function(issue, data, onSuccess) {
                 var self = this;
@@ -315,7 +351,7 @@
                     width: 16px;
                     margin-right: 3px;
                 }
-                div.username {
+                div.name {
                     display: inline-block;
                 }
             }
@@ -334,6 +370,10 @@
                 img {
                     width: 16px;
                 }
+            }
+
+            .status, .assignee, .hours {
+                cursor: pointer;
             }
         }
     }
@@ -396,13 +436,5 @@
                 }
             }
         }
-
-        &.assignee-menu {
-            img {
-                width: 16px;
-                margin-right: 3px;
-            }
-        }
     }
-
 </style>
