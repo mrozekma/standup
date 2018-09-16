@@ -15,6 +15,7 @@ def header(handler, includes, view):
 
 	print("<link rel=\"stylesheet\" href=\"/static/third-party/font-awesome/css/font-awesome.min.css\">")
 	print("<link rel=\"stylesheet\" type=\"text/css\" href=\"/code.css\">")
+	print("<link rel=\"stylesheet\" type=\"text/css\" href=\"/dyn.css\">")
 
 	# jQuery
 	print("<script src=\"/static/third-party/jquery.min.js\"></script>")
@@ -66,7 +67,7 @@ def header(handler, includes, view):
 	projects = None
 	if handler.session['user']:
 		try:
-			projects = handler.jira.getProjects()
+			projects = handler.jira.getProjects(recent = True)
 		except APIError:
 			pass
 	print(f"<su-header :projects={quoteattr(json.dumps(projects))}></su-header>")

@@ -11,12 +11,13 @@
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button">{{ project.name }} <span class="caret"></span></a>
                     <ul class="dropdown-menu">
                         <template v-for="board in project.boards">
-                            <li v-for="sprint in board.sprints"><a v-bind:href="'/sprint/' + sprint.id">{{ sprint.name }} ({{ sprint.startDate }} - {{ sprint.endDate}})</a></li>
+                            <li v-for="sprint in board.sprints"><a :href="`/sprint/${sprint.id}`">{{ sprint.name }} ({{ sprint.startDate }} - {{ sprint.endDate}})</a></li>
                         </template>
                         <li v-if="project.boards.filter(board => board.sprints.length > 0).length > 0" role="separator" class="divider"></li>
+                        <li><a :href="`${$global.jiraUrl}/projects/${project.key}/summary`" class="jira">Project home</a></li>
                         <template v-for="board in project.boards">
-                            <li><a v-bind:href="$global.jiraUrl + '/secure/RapidBoard.jspa?view=planning&rapidView=' + board.id">Jira <b>{{ board.name }}</b> backlog</a></li>
-                            <li><a v-bind:href="$global.jiraUrl + '/secure/RapidBoard.jspa?view=detail&rapidView=' + board.id">Jira <b>{{ board.name }}</b> sprints</a></li>
+                            <li><a :href="`${$global.jiraUrl}/secure/RapidBoard.jspa?view=planning&rapidView=${board.id}`" class="jira">{{ board.name }} backlog</a></li>
+                            <li><a :href="`${$global.jiraUrl}/secure/RapidBoard.jspa?view=detail&rapidView=${board.id}`" class="jira">{{ board.name }} sprints</a></li>
                         </template>
                     </ul>
                 </li>
@@ -26,7 +27,7 @@
             </ul>
         </nav>
         <div v-if="$global.user" class="ident">
-            <img v-bind:src="$global.user.avatar">
+            <img :src="$global.user.avatar">
             <span>{{ $global.user.username }}</span>
         </div>
     </div>
@@ -74,6 +75,11 @@
                 display: block;
                 text-align: center;
             }
+        }
+
+        a.jira {
+            padding-left: 40px;
+            background-position-x: 20px;
         }
     }
 </style>

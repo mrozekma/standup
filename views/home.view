@@ -1,17 +1,71 @@
 <view>
     <div v-for="project in projects" v-if="project.boards.length > 0" class="project">
-        <img class="avatar" v-bind:src="project.avatar">
+        <img class="avatar" :src="project.avatar">
         <h2 class="name">{{ project.name }}</h2>
+        <!-- Standup sprints, then project home, then board backlogs/sprints -->
         <template v-for="board in project.boards">
-            <a v-for="sprint in board.sprints" v-bind:href="'/sprint/' + sprint.id" class="btn btn-primary">{{ sprint.name }} ({{ sprint.startDate }} - {{ sprint.endDate}})</a>
-            <template v-for="board in project.boards">
-                <a v-bind:href="$global.jiraUrl + '/secure/RapidBoard.jspa?view=planning&rapidView=' + board.id" class="btn btn-default">Jira <b>{{ board.name }}</b> backlog</a>
-                <a v-bind:href="$global.jiraUrl + '/secure/RapidBoard.jspa?view=detail&rapidView=' + board.id" class="btn btn-default">Jira <b>{{ board.name }}</b> sprints</a>
-            </template>
+            <a v-for="sprint in board.sprints" :href="'/sprint/' + sprint.id" class="btn btn-primary">{{ sprint.name }} ({{ sprint.startDate }} - {{ sprint.endDate}})</a>
+            <template><!-- This prevents Vue from eating the spacing between the links --></template>
+        </template>
+        <a :href="`${$global.jiraUrl}/projects/${project.key}/summary`" class="btn btn-default jira">Project home</a>
+        <template v-for="board in project.boards">
+            <a :href="`${$global.jiraUrl}/secure/RapidBoard.jspa?view=planning&rapidView=${board.id}`" class="btn btn-default jira">{{ board.name }} backlog</a>
+            <a :href="`${$global.jiraUrl}/secure/RapidBoard.jspa?view=detail&rapidView=${board.id}`" class="btn btn-default jira">{{ board.name }} sprints</a>
+            <template><!-- This prevents Vue from eating the spacing between the links --></template>
         </template>
     </div>
-    <div class="clear"></div>
+    <button v-if="other_projects === null" @click="loadOtherProjects" class="btn btn-primary">Load other projects</button>
+    <button v-else-if="other_projects === true" class="btn btn-primary loading" disabled>
+        <vue-simple-spinner size="small" class="spinner"></vue-simple-spinner>
+        Loading... (this may take a minute)
+    </button>
+    <su-callout v-if="other_projects_error" type="danger" title="Error">
+        {{ other_projects_error }}
+    </su-callout>
 </view>
+
+<script vue>
+    export default {
+        data: {
+            recent_projects: [], // Loaded from controller
+            other_projects: null, // Loaded via AJAX in loadOtherProjects(). 'null' if unloaded, 'true' if currently loading
+            other_projects_error: null,
+        },
+        computed: {
+            projects: function() {
+                switch(this.other_projects) {
+                    case null:
+                    case true:
+                        return this.recent_projects;
+                    default:
+                        return this.recent_projects.concat(this.other_projects);
+                }
+            }
+        },
+        methods: {
+            loadOtherProjects: function() {
+                this.other_projects = true;
+                var self = this;
+                $.get({
+                    url: '/data',
+                    success: function(data) {
+                        self.other_projects_error = null;
+                        // Filter out the projects we're already showing
+                        self.other_projects = data.projects.filter(project => !self.recent_projects.some(project2 => project2.key == project.key));
+                    },
+                    error: function(xhr, type, desc) {
+                        console.error(type);
+                        console.error(desc);
+                        self.other_projects_error = (type == 'error') ? xhr.responseText : desc;
+                        if(!self.other_projects_error) {
+                            self.other_projects_error = 'Unknown error';
+                        }
+                    }
+                })
+            }
+        }
+    }
+</script>
 
 <style type="less">
     .project {
@@ -30,6 +84,19 @@
 
         a.btn {
             padding: 3px 6px;
+            margin-bottom: 4px;
         }
+
+        // Jira buttons have extra left padding to show the Jira icon
+        a.btn.jira {
+            padding: 3px 6px 3px 20px;
+        }
+    }
+
+    button.loading .spinner {
+        display: inline-block;
+        position: relative;
+        top: 2px;
+        margin-right: 2px;
     }
 </style>

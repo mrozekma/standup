@@ -1,10 +1,25 @@
+import json
 from textwrap import dedent
+
+from Config import config
+from Jira import APIError
 
 from rorn import code
 
 @get('', view = 'home')
 def home(handler):
-	return {'projects': handler.jira.getProjects()}
+	return {'recent_projects': handler.jira.getProjects(recent = True)}
+
+@get('data')
+def projectData(handler):
+	handler.wrappers = False
+
+	try:
+		print(json.dumps({'projects': handler.jira.getProjects()}))
+		handler.contentType = 'application/json'
+	except APIError as e:
+		print(str(e))
+		handler.responseCode = 400
 
 @get('code.css', allowGuest = True)
 def codeCSS(handler):
@@ -19,13 +34,13 @@ def codeCSS(handler):
 	.selected_line { background-color: #aa0000aa; }
 	"""))
 
-# For testing
-@get('api/(?P<route>.+)')
-def api(handler, route, **kw):
-	data = handler.jira.get(route, **kw)
-
-	import json, types
-	if isinstance(data, types.GeneratorType):
-		print("<i>Paginated result</i>")
-		data = list(data)
-	print(f"<pre>{json.dumps(data, indent = 4)}</pre>")
+@get('dyn.css', allowGuest = True)
+def dynCSS(handler):
+	handler.wrappers = False
+	handler.contentType = 'text/css'
+	print(dedent(f"""
+	a.jira, button.jira {{
+		padding-left: 20px;
+		background: url({config.jiraUrl}/images/64jira.png) 2px 4px/16px no-repeat;
+	}}
+	"""))

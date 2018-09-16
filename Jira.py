@@ -150,8 +150,10 @@ class Jira:
 		if cacheWrite:
 			self.cache[(url, params, None)] = wholeList
 
-	def getProjects(self):
+	def getProjects(self, recent = None):
 		convertDate = lambda ts: self.parseTimestamp(ts).strftime('%d %b').lstrip('0')
+		# 'recent' can be a number to get that many recently viewed projects, 'True' to get a default number, or 'None' to get all projects
+		recentKw = {'recent': 5 if recent is True else recent} if recent is not None else {}
 
 		return [{
 			'key': project['key'],
@@ -165,9 +167,9 @@ class Jira:
 					'name': sprint['name'],
 					'startDate': convertDate(sprint['startDate']),
 					'endDate': convertDate(sprint['endDate']),
-				} for sprint in self.get(f"agile/board/{board['id']}/sprint", cacheRead = True)],
+				} for sprint in self.get(f"agile/board/{board['id']}/sprint", state = 'active', cacheRead = True)],
 			} for board in self.get('agile/board', projectKeyOrId = project['key'], type = 'scrum', cacheRead = True)],
-		} for project in self.get('api/project', expand = 'lead', cacheRead = True)]
+		} for project in self.get('api/project', expand = 'lead', **recentKw, cacheRead = True)]
 
 	def getLargestAvatar(self, avatars):
 		pat = re.compile('([0-9]+)x([0-9]+)')
