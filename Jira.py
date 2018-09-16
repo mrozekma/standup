@@ -75,7 +75,7 @@ class Jira:
 			cacheRead = cacheWrite = False
 
 		if cacheRead:
-			rtn = self.cache[url]
+			rtn = self.cache[(url, params, data)]
 			if rtn is not None:
 				return rtn
 
@@ -116,7 +116,7 @@ class Jira:
 		else:
 			# Result is not paginated, just return the whole thing
 			if cacheWrite:
-				self.cache[url] = rtn
+				self.cache[(url, params, data)] = rtn
 			return rtn
 
 	get = partialmethod(request, 'get')
@@ -148,7 +148,7 @@ class Jira:
 
 		# Cache the entire result
 		if cacheWrite:
-			self.cache[url] = wholeList
+			self.cache[(url, params, None)] = wholeList
 
 	def getProjects(self):
 		convertDate = lambda ts: self.parseTimestamp(ts).strftime('%d %b').lstrip('0')
