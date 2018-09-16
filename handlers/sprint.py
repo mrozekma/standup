@@ -106,7 +106,7 @@ def sprintData(handler, id):
 		handler.responseCode = 400
 
 @post('sprint/(?P<id>[0-9]+)/update')
-def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None):
+def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None, p_remaining = None, p_estimate = None):
 	handler.wrappers = False
 	p_issue = int(p_issue)
 
@@ -118,6 +118,11 @@ def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None):
 			handler.contentType = 'application/json'
 		elif p_assignee is not None:
 			handler.jira.put(f"api/issue/{p_issue}", data = {'fields': {'assignee': {'name': str(p_assignee)}}})
+		elif p_remaining is not None or p_estimate is not None:
+			tracking = {}
+			if p_remaining is not None: tracking['remainingEstimate'] = p_remaining
+			if p_estimate is not None: tracking['originalEstimate'] = p_estimate
+			handler.jira.put(f"api/issue/{p_issue}", data = {'fields': {'timetracking': tracking}})
 		else:
 			handler.responseCode = 400
 			print("No update")

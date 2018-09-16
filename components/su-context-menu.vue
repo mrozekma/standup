@@ -1,0 +1,219 @@
+<!-- Adapted from https://github.com/rawilk/vue-context -->
+
+<template>
+    <div class="v-context"
+         v-show="show"
+         :style="style"
+         tabindex="-1"
+         @focusout="onFocusOut"
+         @click="onClick"
+         @contextmenu.capture.prevent
+    >
+        <slot :data="data"></slot>
+    </div>
+</template>
+
+<script>
+    export default {
+        props: {
+            /**
+             * Close the menu on click.
+             *
+             * @type {boolean}
+             */
+            closeOnClick: {
+                type: Boolean,
+                default: true
+            },
+
+            /**
+             * Close the menu automatically on window scroll.
+             *
+             * @type {boolean}
+             */
+            closeOnScroll: {
+                type: Boolean,
+                default: true
+            },
+        },
+
+        computed: {
+            /**
+             * Generate the CSS styles for positioning the context menu.
+             *
+             * @returns {object|null}
+             */
+            style () {
+                return this.show
+                    ? { top: `${this.top}px`, left: `${this.left}px` }
+                    : null;
+            },
+        },
+
+        data () {
+            return {
+                top: null,
+                left: null,
+                show: false,
+                data: null
+            };
+        },
+
+        mounted () {
+            if (this.closeOnScroll) {
+                this.addScrollEventListener();
+            }
+        },
+
+        beforeDestroy () {
+            if (this.closeOnScroll) {
+                this.removeScrollEventListener();
+            }
+        },
+
+        methods: {
+            /**
+             * Add scroll event listener to close context menu.
+             */
+            addScrollEventListener () {
+                window.addEventListener('scroll', this.close);
+            },
+
+            onFocusOut() {
+                var self = this;
+                setTimeout(function() {
+                    // Check if the focus is still on an element within the menu. If not, close it
+                    for (seek = document.activeElement; seek; seek = seek.parentElement) {
+                        if (seek == self.$el) {
+                            return;
+                        }
+                    }
+                    self.close();
+                }, 1);
+            },
+
+            /**
+             * Close the context menu.
+             */
+            close () {
+                this.top = null;
+                this.left = null;
+                this.data = null;
+                this.show = false;
+                this.$emit('close');
+            },
+
+            /**
+             * Close the menu if `closeOnClick` is set to true.
+             */
+            onClick () {
+                if (this.closeOnClick) {
+                    this.close();
+                }
+            },
+
+            /**
+             * Open the context menu.
+             *
+             * @param {MouseEvent} event
+             * @param {array|object|string} data User provided data for the menu
+             */
+            open (event, data) {
+                this.data = data;
+                this.show = true;
+
+                this.$nextTick(() => {
+                    this.positionMenu(event.clientY, event.clientX);
+                    this.$el.focus();
+                });
+            },
+
+            /**
+             * Set the context menu top and left positions.
+             *
+             * @param {number} top
+             * @param {number} left
+             */
+            positionMenu (top, left) {
+                const largestHeight = window.innerHeight - this.$el.offsetHeight - 25;
+                const largestWidth = window.innerWidth - this.$el.offsetWidth - 25;
+
+                if (top > largestHeight) {
+                    top = largestHeight;
+                }
+
+                if (left > largestWidth) {
+                    left = largestWidth;
+                }
+
+                this.top = top;
+                this.left = left;
+            },
+
+            /**
+             * Remove the scroll event listener to close the context menu.
+             */
+            removeScrollEventListener () {
+                window.removeEventListener('scroll', this.close);
+            }
+        },
+
+        watch: {
+            /**
+             * Add or remove the scroll event listener when the prop value changes.
+             *
+             * @param {boolean} value
+             * @param {boolean} oldValue
+             */
+            closeOnScroll (value, oldValue) {
+                if (value === oldValue) {
+                    return;
+                }
+
+                if (value) {
+                    this.addScrollEventListener();
+                } else {
+                    this.removeScrollEventListener();
+                }
+            }
+        }
+    };
+</script>
+
+<style lang="less">
+    @blue600: #1e88e5;
+    @gray74: #bdbdbd;
+    @gray93: #ededed;
+    @gray98: #fafafa;
+
+    .v-context {
+        background: @gray98;
+        border: 1px solid @gray74;
+        box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+        display: block;
+        margin: 0;
+        padding: 0;
+        position: fixed;
+        width: 250px;
+        z-index: 99999;
+
+        ul {
+            list-style: none;
+            padding: 10px 0;
+            margin: 0;
+            font-size: 12px;
+            font-weight: 600;
+
+            li {
+                margin: 0;
+                padding: 10px 35px;
+                cursor: pointer;
+
+                &:hover {
+                    background: @blue600;
+                    color: @gray98;
+                }
+            }
+        }
+    }
+</style>

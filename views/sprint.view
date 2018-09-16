@@ -1,4 +1,5 @@
 <components>
+    su-context-menu
     su-context-menu-item
 </components>
 
@@ -48,8 +49,9 @@
             <td v-else class="assignee" @click.prevent="popup(issue, 'assignee_menu', $event)">
                 Unassigned
             </td>
-            <td class="hours">
-                <vue-simple-progress text-position="top" :text="formatSeconds(issue.remaining)" :val="Math.max(0, issue.estimate - issue.remaining)" :max="issue.estimate"></vue-simple-progress>
+            <td class="hours" @click.prevent="popup(issue, 'hours_box', $event)">
+                <vue-simple-progress v-if="issue.remaining !== null" text-position="top" :text="formatSeconds(issue.remaining)" :val="Math.max(0, issue.estimate - issue.remaining)" :max="issue.estimate"></vue-simple-progress>
+                <div v-else class="unestimated">Unestimated</div>
             </td>
             <td class="links">
                 <a :href="`${$global.jiraUrl}/browse/${issue.key}`" title="View on Jira" target="_blank"><img :src="`${$global.jiraUrl}/images/64jira.png`"></a>
@@ -57,20 +59,20 @@
         </tr>
     </table>
 
-    <vue-context v-if="menuIssue" ref="status_menu" class="status-menu">
+    <su-context-menu v-if="menuIssue" ref="status_menu" class="status-menu">
         <ul>
             <su-context-menu-item
                     v-for="transition in menuIssue.transitions"
-                    :key="`status-item-${transition.name}`"
+                    :key="`status-item-${transition.id}`"
                     :icon="`/static/images/status-${transition.status.category}.png`"
                     :title="transition.status.name"
                     :text="transition.name"
                     @click="doTransition(menuIssue, transition)"
             ></su-context-menu-item>
         </ul>
-    </vue-context>
+    </su-context-menu>
 
-    <vue-context v-if="menuIssue" ref="assignee_menu" class="assignee-menu">
+    <su-context-menu v-if="menuIssue" ref="assignee_menu" class="assignee-menu">
         <ul>
             <!-- Current user -->
             <su-context-menu-item
@@ -89,7 +91,29 @@
                 @click="doAssign(menuIssue, member)"
             ></su-context-menu-item>
         </ul>
-    </vue-context>
+    </su-context-menu>
+
+    <su-context-menu v-if="menuIssue" ref="hours_box" class="hours-box" :close-on-click="false">
+        <button v-if="menuHours * 60 * 60 != menuIssue.remaining" class="apply btn btn-sm btn-primary" @click="doHours(menuIssue, menuHours); $refs.hours_box.close()"><i class="fa fa-check"></i>&nbsp;Apply</button>
+        <div class="remaining"><input type="text" :value="`${menuHours}h`" @change="setMenuHours($event.srcElement)"> remaining</div>
+        <template v-if="menuIssue.estimate">
+            <div class="estimate"><span>{{ formatSeconds(menuIssue.estimate) }}</span> estimated</div>
+            <vue-simple-progress size="large" :val="Math.max(0, menuIssue.estimate - (menuHours * 60 * 60))" :max="menuIssue.estimate"></vue-simple-progress>
+        </template>
+        <template v-else>
+            <!-- This shows tasks with 0h estimates as "unestimated", even though that's technically distinct from no estimate -->
+            <div class="estimate">No original estimate</div>
+            <vue-simple-progress class="unestimated" size="large" :val="100"></vue-simple-progress>
+        </template>
+        <div class="hour-buttons">
+            <template v-for="amt in [+8, +4, +1, 0, -1, -4, -8]">
+                <button v-if="amt" :class="['btn', 'btn-sm', amt < 0 ? 'btn-success' : 'btn-danger']" @click="menuHours = Math.max(0, menuHours + amt)">
+                    {{ (amt > 0 ? '+' : '') + amt }}h
+                </button>
+                <div v-else class="spacer"></div>
+            </template>
+        </div>
+    </su-context-menu>
 </view>
 
 <script>
@@ -104,7 +128,6 @@
         // import SuContextMenuItem from "../components/su-context-menu-item";
         components: {
         //     SuContextMenuItem,
-            VueContext
         },
         data: {
             // Loaded via AJAX
@@ -117,6 +140,7 @@
             error: null,
             processing: [], // issues currently processing. Sets aren't reactive :(
             menuIssue: null, // issue we're showing a context menu for
+            menuHours: null, // hours for issue we're showing a context menu for. Only relevant for hours popup
         },
         mounted: function() {
             this.loadData();
@@ -212,8 +236,26 @@
             },
             popup: function(issue, menuName, e) {
                 this.menuIssue = issue;
+                this.menuHours = Math.ceil(issue.remaining / 60 / 60);
                 // Need to render so the menu will be created now that menuIssue is non-null
                 this.$nextTick(() => this.$refs[menuName].open(e));
+            },
+            setMenuHours: function(el) {
+                match = el.value.match(/^([0-9]+)h?$/);
+                if(match) {
+                    this.menuHours = parseInt(match[1], 10);
+                } else {
+                    Vue.toasted.show("Bad hours value", {
+                        position: 'bottom-center',
+                        duration: 10000,
+                        icon: 'exclamation-circle',
+                        type: 'error',
+                        closeOnSwipe: true,
+                    });
+                }
+                // Let Vue rerender the <input> to make sure it's consistent.
+                // This will undo the user's change if it was bad, and restore the 'h' suffix if it's missing
+                this.$forceUpdate();
             },
             doUpdate: function(issue, data, onSuccess) {
                 var self = this;
@@ -264,6 +306,19 @@
                     },
                 );
             },
+            doHours: function(issue, hours) {
+                this.doUpdate(
+                    issue,
+                    {remaining: hours + 'h', estimate: (issue.estimate == null) ? null : this.formatSeconds(issue.estimate)},
+                    function(data) {
+                        issue.remaining = hours * 60 * 60;
+                        // Matching Jira's behavior:
+                        if(issue.estimate == null) {
+                            issue.estimate = issue.remaining;
+                        }
+                    }
+                )
+            }
         }
     }
 </script>
@@ -360,9 +415,10 @@
                 .vue-simple-progress {
                     width: 100px;
                 }
-                /*.estimate, .remaining {*/
-                /*display: inline-block;*/
-                /*}*/
+                .unestimated {
+                    padding: 2px auto;
+                    text-align: center;
+                }
             }
 
             .links {
@@ -425,15 +481,64 @@
     */
 
     .v-context {
-        width: auto !important;
+        width: auto;
         ul {
-            padding: 0 !important;
+            padding: 0;
             li {
-                padding: 10px !important;
+                padding: 10px;
                 img {
                     position: relative;
                     top: -2px;
                 }
+            }
+        }
+
+        &.hours-box {
+            border: 1px solid #000;
+            width: 250px;
+            height: 150px;
+            padding: 10px;
+            .remaining {
+                position: relative;
+                top: 8px;
+                text-align: right;
+                font-size: 1.5em;
+                span {
+                    font-size: 2em;
+                }
+                input {
+                    text-align: right;
+                    border: 0;
+                    background: inherit;
+                    width: 4ch;
+                    font-size: 2em; // This stacks on top of the outer size
+                }
+            }
+            .estimate {
+                text-align: right;
+            }
+            .vue-simple-progress-bar {
+                margin-top: 5px;
+            }
+            .unestimated .vue-simple-progress-bar {
+                background: repeating-linear-gradient(-45deg, #2196f3, #2196f3 10px, #104775 10px, #104775 20px) !important;
+            }
+            .hour-buttons {
+                display: flex;
+                margin-top: 10px;
+                button {
+                    padding: 4px 5px;
+                    margin: 2px;
+                }
+                .spacer {
+                    flex-grow: 1;
+                }
+            }
+            button.apply {
+                position: absolute;
+                top: 3px;
+                right: 13px;
+                z-index: 1 // Otherwise the button ends up partially underneath the remaining estimate
             }
         }
     }
