@@ -38,13 +38,19 @@ def header(handler, includes, view):
 	for filename in includes['js']:
 		print(f"<script src=\"{filename}\" type=\"text/javascript\"></script>")
 
+	print("<script type=\"text/javascript\">")
+	localUrl = config.localUrl
+	try:
+		localUrl = localUrl[localUrl.index('://') + 3:]
+	except IndexError:
+		pass
+	print(f"if(window.location.host != {json.dumps(localUrl)}) {{window.location.host = {json.dumps(localUrl)};}}")
 	if handler.wrapperData['jsOnReady']:
-		print("<script type=\"text/javascript\">")
 		print("$(function() {")
 		for js in handler.wrapperData['jsOnReady']:
 			print(f"    {js}")
 		print("});")
-		print("</script>")
+	print("</script>")
 
 	# Less
 	print("<link rel=\"stylesheet/less\" type=\"text/css\" href=\"/static/style.less\">")
