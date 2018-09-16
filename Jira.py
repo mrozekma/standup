@@ -41,7 +41,7 @@ class APIError(BaseException):
 		self.url = url
 
 	def __str__(self):
-		return (self.message or f"API request failed, code {self.code}") + (f" ({self.url})" if self.url else '')
+		return (self.message or f"API request failed, code {self.code}")
 
 apiVersions = {
 	'api': '2',
@@ -94,13 +94,17 @@ class Jira:
 		if req.status_code == 204:
 			return None
 		if req.status_code != 200:
-			try:
-				message = req.json()['message']
-			except:
+			messageExtractors = [
+				lambda json: json['message'],
+				lambda json: json['errorMessages'][0],
+				lambda json: list(json['errors'].values())[0],
+			]
+			message = None
+			for fn in messageExtractors:
 				try:
-					message = req.json()['errorMessages'][0]
+					message = fn(req.json())
 				except:
-					message = None
+					pass
 			console('jira api', f"{req}: {req.text}")
 			raise APIError(req.status_code, message, url)
 
