@@ -1,5 +1,5 @@
 <view>
-    <div v-for="project in projects" class="project">
+    <div v-for="project in projects" v-if="project.boards.length > 0" class="project">
         <img class="avatar" v-bind:src="project.avatar">
         <h2 class="name">{{ project.name }}</h2>
         <template v-for="board in project.boards">
