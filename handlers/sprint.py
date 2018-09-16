@@ -74,8 +74,7 @@ def getMembers(jira, sprintId):
 	indirectUsers = {user['name']: jira.getLargestAvatar(user['avatarUrls']) for groupname in groups for user in jira.get("api/group", groupname = groupname, expand = 'users', cacheRead = True)['users']['items']}
 
 	users = {**directUsers, **indirectUsers}
-	userList = [{'username': name, 'avatar': avatar} for (name, avatar) in users.items()]
-	return sorted(userList, key = lambda user: user['username'])
+	return [{'username': name, 'avatar': avatar} for (name, avatar) in users.items()]
 
 @get('sprint/(?P<id>[0-9]+)', view = 'sprint')
 def sprint(handler, id):
@@ -98,7 +97,14 @@ def sprintData(handler, id):
 		else:
 			sprint = handler.jira.get(f"agile/sprint/{id}")
 
-		rtn = {'sprint_name': sprint['name'], 'members': getMembers(handler.jira, id), 'issues': issues, 'parents': parents}
+		try:
+			# This only works if the user is a project admin
+			members = getMembers(handler.jira, id)
+		except APIError:
+			members = {issue['assignee']['username']: issue['assignee'] for issue in issues + parents if issue['assignee']}.values()
+		members = sorted(members, key = lambda user: user['username'])
+
+		rtn = {'sprint_name': sprint['name'], 'members': members, 'issues': issues, 'parents': parents}
 		print(json.dumps(rtn))
 		handler.contentType = 'application/json'
 	except APIError as e:
@@ -106,7 +112,7 @@ def sprintData(handler, id):
 		handler.responseCode = 400
 
 @post('sprint/(?P<id>[0-9]+)/update')
-def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None, p_remaining = None, p_estimate = None):
+def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None, p_remaining = None, p_estimate = None, p_returnUserInfo = False):
 	handler.wrappers = False
 	p_issue = int(p_issue)
 
@@ -118,6 +124,13 @@ def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None, p
 			handler.contentType = 'application/json'
 		elif p_assignee is not None:
 			handler.jira.put(f"api/issue/{p_issue}", data = {'fields': {'assignee': {'name': str(p_assignee)}}})
+			if p_returnUserInfo:
+				data = handler.jira.get("api/user", username = p_assignee)
+				print(json.dumps({
+					'username': data['name'],
+					'avatar': handler.jira.getLargestAvatar(data['avatarUrls'])
+				}))
+				handler.contentType = 'application/json'
 		elif p_remaining is not None or p_estimate is not None:
 			tracking = {}
 			if p_remaining is not None: tracking['remainingEstimate'] = p_remaining

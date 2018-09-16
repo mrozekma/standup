@@ -90,6 +90,12 @@
                 :text="member.username"
                 @click="doAssign(menuIssue, member)"
             ></su-context-menu-item>
+            <!-- Prompt for user -->
+            <su-context-menu-item
+                text="Other"
+                @click="doAssignPrompt(menuIssue)"
+                style="border-top: 1px solid #bdbdbd"
+            ></su-context-menu-item>
         </ul>
     </su-context-menu>
 
@@ -303,6 +309,33 @@
                     {assignee: user.username},
                     function(data) {
                         issue.assignee = user;
+                    },
+                );
+            },
+            doAssignPrompt: function(issue) {
+                // At some point I should probably get unlazy about this:
+                var username = prompt('Username:')
+                if(username == null) {
+                    return;
+                }
+                var self = this;
+                this.doUpdate(
+                    issue,
+                    {assignee: username, returnUserInfo: true},
+                    function(data) {
+                        console.log(data);
+                        issue.assignee = data;
+                        // Also want to insert into this.members, but it's sorted by username
+                        for(var i = 0; i < self.members.length; i++) {
+                            switch(self.members[i].username.localeCompare(data.username)) {
+                                case 0:
+                                    return;
+                                case 1:
+                                    self.members.splice(i, 0, data);
+                                    return;
+                            }
+                        }
+                        self.members.push(data);
                     },
                 );
             },
