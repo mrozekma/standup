@@ -157,12 +157,7 @@
                 var awaitingPlacement = [];
 
                 // Place all root elements and queue the rest
-                for(let issue of this.issues) {
-                    issue = Object.assign({}, issue, {inSprint: true, indent: 0});
-                    (issue.parent ? awaitingPlacement : order).push(issue);
-                }
-                for(let issue of this.parents) {
-                    issue = Object.assign({}, issue, {inSprint: false, indent: 0});
+                for(let issue of this.issues.concat(this.parents)) {
                     (issue.parent ? awaitingPlacement : order).push(issue);
                 }
 
@@ -176,6 +171,7 @@
                         awaitingPlacement.forEach(issue => ((issue['parent'] === parent.id) ? placeNow : stillWaiting).push(issue));
 
                         if(placeNow.length > 0) {
+                            //TODO A computed property modifying the field of a data element probably isn't good design, but it seems to work
                             placeNow.forEach(issue => issue.indent = parent.indent + 1);
                             order.splice.apply(order, [i + 1, 0, ...placeNow]);
                             i += placeNow.length;
@@ -200,6 +196,17 @@
                         self.issues = data.issues;
                         self.parents = data.parents;
                         self.processing.splice(0, self.processing.length);
+
+                        // Add on a few issue fields for use by issuesOrdered
+                        for(let issue of self.issues) {
+                            issue.inSprint = true;
+                            issue.indent = 0;
+                        }
+                        for(let issue of self.parents) {
+                            issue.inSprint = false;
+                            issue.indent = 0;
+                        }
+
                         self.loaded = true;
                     },
                     error: function(xhr, type, desc) {
@@ -323,7 +330,6 @@
                     issue,
                     {assignee: username, returnUserInfo: true},
                     function(data) {
-                        console.log(data);
                         issue.assignee = data;
                         // Also want to insert into this.members, but it's sorted by username
                         for(var i = 0; i < self.members.length; i++) {
