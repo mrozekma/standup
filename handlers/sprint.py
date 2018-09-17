@@ -55,27 +55,6 @@ def getParentIssues(jira, issues, existingIds = None):
 			existingIds.add(parent['id'])
 			yield from getParentIssues(jira, [parent], existingIds)
 
-def getMembers(jira, sprintId):
-	# This is ridiculously complicated:
-
-	# Get the board from the sprint
-	boardId = jira.get(f"agile/sprint/{sprintId}", cacheRead = True)['originBoardId']
-	# Get the projects from the board
-	projectIds = [project['id'] for project in jira.get(f"agile/board/{boardId}/project", cacheRead = True)]
-	# Get the roles from the projects
-	roleUrls = [url for projectId in projectIds for name, url in jira.get(f"api/project/{projectId}", cacheRead = True)['roles'].items()]
-	# Get the actors from the roles
-	actors = [actor for url in roleUrls for actor in jira.load('get', url, cacheRead = True)['actors']]
-	# Get users from the actors ({username: avatarUrl})
-	directUsers = {actor['name']: actor['avatarUrl'] for actor in actors if actor['type'] == 'atlassian-user-role-actor'}
-	# Get group names from the actors
-	groups = {actor['name'] for actor in actors if actor['type'] == 'atlassian-group-role-actor'}
-	# Get users from the groups
-	indirectUsers = {user['name']: jira.getLargestAvatar(user['avatarUrls']) for groupname in groups for user in jira.get("api/group", groupname = groupname, expand = 'users', cacheRead = True)['users']['items']}
-
-	users = {**directUsers, **indirectUsers}
-	return [{'username': name, 'avatar': avatar} for (name, avatar) in users.items()]
-
 @get('sprint/(?P<id>[0-9]+)', view = 'sprint')
 def sprint(handler, id):
 	handler.title(False)
@@ -97,11 +76,7 @@ def sprintData(handler, id):
 		else:
 			sprint = handler.jira.get(f"agile/sprint/{id}")
 
-		try:
-			# This only works if the user is a project admin
-			members = getMembers(handler.jira, id)
-		except APIError:
-			members = {issue['assignee']['username']: issue['assignee'] for issue in issues + parents if issue['assignee']}.values()
+		members = {issue['assignee']['username']: issue['assignee'] for issue in issues + parents if issue['assignee']}.values()
 		members = sorted(members, key = lambda user: user['username'])
 
 		rtn = {'sprint_name': sprint['name'], 'members': members, 'issues': issues, 'parents': parents}
