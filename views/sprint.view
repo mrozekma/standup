@@ -10,6 +10,10 @@
     </h1>
     <h1 v-else>Loading...</h1>
 
+    <div v-if="loaded" class="filters">
+        <button v-for="member in members" @click="filterUsername = (filterUsername == member.username) ? null : member.username" :class="['btn', 'btn-sm', (filterUsername == member.username) ? 'btn-primary' : null]"><img :src="member.avatar" class="avatar"><div class="name">{{ member.username }}</div></button>
+    </div>
+
     <table class="issues">
         <tr>
             <th></th>
@@ -33,7 +37,7 @@
                 </su-callout>
             </td>
         </tr>
-        <tr v-if="loaded && !error" v-for="(issue, idx) in issuesOrdered" :data-id="issue.id" class="issue" :class="[`status-category-${issue.status.category}`, {sprint: issue.inSprint}]">
+        <tr v-for="(issue, idx) in issuesOrdered" v-if="isVisible(issue)" :data-id="issue.id" class="issue" :class="[`status-category-${issue.status.category}`, {sprint: issue.inSprint}]">
             <td class="index">
                 <vue-simple-spinner v-if="processing.includes(issue)" size="small"></vue-simple-spinner>
                 <span v-else class="badge">{{ idx + 1 }}</span>
@@ -144,6 +148,7 @@
 
             loaded: false,
             error: null,
+            filterUsername: null, // Only show issues assigned to this user
             processing: [], // issues currently processing. Sets aren't reactive :(
             menuIssue: null, // issue we're showing a context menu for
             menuHours: null, // hours for issue we're showing a context menu for. Only relevant for hours popup
@@ -181,7 +186,18 @@
                 }
 
                 return order;
-            }
+            },
+            treeAssignees: function() { // Maps issue ID to a list of assignees for that issue and all descendents
+                var issuesById = new Map(this.issuesOrdered.map(issue => [issue.id, issue]));
+                var rtn = new Map();
+                for(let issue of this.issuesOrdered) {
+                    rtn.set(issue.id, []);
+                    for(var seek = issue; seek; seek = issuesById.get(seek.parent)) {
+                        rtn.get(seek.id).push(issue.assignee ? issue.assignee.username : null);
+                    }
+                }
+                return rtn;
+            },
         },
         methods: {
             loadData: function() {
@@ -205,6 +221,10 @@
                         for(let issue of self.parents) {
                             issue.inSprint = false;
                             issue.indent = 0;
+                        }
+
+                        if(self.filterUsername && !self.members.some(member => member.username == self.filterUsername)) {
+                            self.filterUsername = null;
                         }
 
                         self.loaded = true;
@@ -246,6 +266,15 @@
                     hours ? hours + 'h' : null,
                     minutes ? minutes + 'm' : null,
                 ].filter(x => x).join(' ');
+            },
+            isVisible: function(issue) {
+                if(!this.loaded || this.error) {
+                    return false;
+                }
+                if(!this.filterUsername) {
+                    return true;
+                }
+                return this.treeAssignees.get(issue.id).includes(this.filterUsername);
             },
             popup: function(issue, menuName, e) {
                 this.menuIssue = issue;
@@ -367,6 +396,27 @@
         float: right;
     }
 
+    .filters {
+        margin-top: -5px;
+        margin-bottom: 10px;
+
+        .btn-primary {
+            background-color: #286090;
+            border-color: #204d74;
+        }
+    }
+
+    .issues tr.issue .assignee, .filters button {
+        margin-right: 3px;
+        img.avatar {
+            width: 16px;
+            margin-right: 3px;
+        }
+        div.name {
+            display: inline-block;
+        }
+    }
+
     .issues {
         width: 100%;
         border-spacing: 0;
@@ -441,13 +491,6 @@
 
             .assignee {
                 padding-right: 20px;
-                img {
-                    width: 16px;
-                    margin-right: 3px;
-                }
-                div.name {
-                    display: inline-block;
-                }
             }
 
             .hours {
