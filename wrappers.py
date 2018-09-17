@@ -1,9 +1,15 @@
+import bleach
 import json
+from pathlib import Path
+import subprocess
 from textwrap import dedent
 from xml.sax.saxutils import quoteattr
 
 from Config import config
 from Jira import APIError
+
+proc = subprocess.run(['git', 'describe', '--all', '--long', '--abbrev=40', '--dirty'], cwd = Path(__file__).resolve().parent, stdout = subprocess.PIPE)
+curHash = proc.stdout.decode('utf8')
 
 def header(handler, includes, view):
 	print("<!DOCTYPE html>")
@@ -78,6 +84,7 @@ def header(handler, includes, view):
 
 def footer(handler, data, view):
 	print("</div>")
+	print(f"""<div class="footer-hash">{bleach.clean(curHash, [])}</div>""")
 	print("</div>")
 
 	globalData = {
