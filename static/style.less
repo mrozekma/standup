@@ -11,6 +11,10 @@ body {
 	display: flex;
 	flex-flow: column;
 	height: 100%;
+
+	&[v-cloak] {
+		display: none;
+	}
 }
 
 .header {

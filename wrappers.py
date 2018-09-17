@@ -62,7 +62,7 @@ def header(handler, includes, view):
 
 	print("</head>")
 	print("<body>")
-	print("<div id=\"vue-root\">")
+	print("<div id=\"vue-root\" v-cloak>")
 
 	projects = None
 	if handler.session['user']:
