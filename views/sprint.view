@@ -20,9 +20,9 @@
             <th></th>
             <th>Key</th>
             <!--<th></th>-->
-            <th>Summary</th>
             <th>Assignee</th>
             <th>Hours</th>
+            <th>Summary</th>
             <th></th>
         </tr>
         <tr v-if="!loaded" class="loading-row">
@@ -37,7 +37,7 @@
                 </su-callout>
             </td>
         </tr>
-        <tr v-for="(issue, idx) in issuesOrdered" v-if="isVisible(issue)" :data-id="issue.id" class="issue" :class="[`status-category-${issue.status.category}`, {sprint: issue.inSprint}]">
+        <tr v-for="(issue, idx) in issuesOrdered" v-if="isVisible(issue)" :key="`row-${issue.id}`" :data-id="issue.id" class="issue" :class="[`status-category-${issue.status.category}`, {sprint: issue.inSprint}]">
             <td class="index">
                 <vue-simple-spinner v-if="processing.includes(issue)" size="small"></vue-simple-spinner>
                 <span v-else class="badge">{{ idx + 1 }}</span>
@@ -45,7 +45,6 @@
             <td class="status" @click.prevent="popup(issue, 'status_menu', $event)"><img :src="`/static/images/status-${issue.status.category}.png`" :title="issue.status.name"></td>
             <td class="key">{{ issue.key }}</td>
             <!--<td class="expander"></td>-->
-            <td class="summary" :style="`padding-left: ${issue.indent * 30}px;`"><img :src="issue.type.icon" :title="issue.type.name" class="type"> {{ issue.summary }}</td>
             <td v-if="issue.assignee" class="assignee" @click.prevent="popup(issue, 'assignee_menu', $event)">
                 <img :src="issue.assignee.avatar" class="avatar">
                 <div class="name">{{ issue.assignee.username }}</div>
@@ -57,73 +56,80 @@
                 <vue-simple-progress v-if="issue.remaining !== null" text-position="top" :text="formatSeconds(issue.remaining)" :val="Math.max(0, issue.estimate - issue.remaining)" :max="issue.estimate"></vue-simple-progress>
                 <div v-else class="unestimated">Unestimated</div>
             </td>
+            <td class="summary" :style="`padding-left: ${issue.indent * 30}px;`"><img :src="issue.type.icon" :title="issue.type.name" class="type"> {{ issue.summary }}</td>
             <td class="links">
                 <a :href="`${$global.jiraUrl}/browse/${issue.key}`" title="View on Jira" target="_blank"><img :src="`${$global.jiraUrl}/images/64jira.png`"></a>
             </td>
         </tr>
     </table>
 
-    <su-context-menu v-if="menuIssue" ref="status_menu" class="status-menu">
-        <ul>
-            <su-context-menu-item
-                    v-for="transition in menuIssue.transitions"
-                    :key="`status-item-${transition.id}`"
-                    :icon="`/static/images/status-${transition.status.category}.png`"
-                    :title="transition.status.name"
-                    :text="transition.name"
-                    @click="doTransition(menuIssue, transition)"
-            ></su-context-menu-item>
-        </ul>
-    </su-context-menu>
+    <transition enter-active-class="animated fadeIn quick" leave-active-class="animated fadeOut quick">
+        <su-context-menu v-if="menuIssue" ref="status_menu" class="status-menu" @close="menuIssue = null">
+            <ul>
+                <su-context-menu-item
+                        v-for="transition in menuIssue.transitions"
+                        :key="`status-item-${transition.id}`"
+                        :icon="`/static/images/status-${transition.status.category}.png`"
+                        :title="transition.status.name"
+                        :text="transition.name"
+                        @click="doTransition(menuIssue, transition)"
+                ></su-context-menu-item>
+            </ul>
+        </su-context-menu>
+    </transition>
 
-    <su-context-menu v-if="menuIssue" ref="assignee_menu" class="assignee-menu">
-        <ul>
-            <!-- Current user -->
-            <su-context-menu-item
-                v-if="menuIssue.assignee && menuIssue.assignee.username != $global.user.username"
-                :icon="$global.user.avatar"
-                :text="$global.user.username"
-                @click="doAssign(menuIssue, $global.user)"
-                style="border-bottom: 1px solid #bdbdbd"
-            ></su-context-menu-item>
-            <su-context-menu-item
-                v-for="member in members"
-                v-if="member.username != $global.user.username && (!menuIssue.assignee || member.username != menuIssue.assignee.username)"
-                :key="`assignee-item-${member.username}`"
-                :icon="member.avatar"
-                :text="member.username"
-                @click="doAssign(menuIssue, member)"
-            ></su-context-menu-item>
-            <!-- Prompt for user -->
-            <su-context-menu-item
-                text="Other"
-                @click="doAssignPrompt(menuIssue)"
-                style="border-top: 1px solid #bdbdbd"
-            ></su-context-menu-item>
-        </ul>
-    </su-context-menu>
+    <transition enter-active-class="animated fadeIn quick" leave-active-class="animated fadeOut quick">
+        <su-context-menu v-if="menuIssue" ref="assignee_menu" class="assignee-menu" @close="menuIssue = null">
+            <ul>
+                <!-- Current user -->
+                <su-context-menu-item
+                    v-if="menuIssue.assignee && menuIssue.assignee.username != $global.user.username"
+                    :icon="$global.user.avatar"
+                    :text="$global.user.username"
+                    @click="doAssign(menuIssue, $global.user)"
+                    style="border-bottom: 1px solid #bdbdbd"
+                ></su-context-menu-item>
+                <su-context-menu-item
+                    v-for="member in members"
+                    v-if="member.username != $global.user.username && (!menuIssue.assignee || member.username != menuIssue.assignee.username)"
+                    :key="`assignee-item-${member.username}`"
+                    :icon="member.avatar"
+                    :text="member.username"
+                    @click="doAssign(menuIssue, member)"
+                ></su-context-menu-item>
+                <!-- Prompt for user -->
+                <su-context-menu-item
+                    text="Other"
+                    @click="doAssignPrompt(menuIssue)"
+                    style="border-top: 1px solid #bdbdbd"
+                ></su-context-menu-item>
+            </ul>
+        </su-context-menu>
+    </transition>
 
-    <su-context-menu v-if="menuIssue" ref="hours_box" class="hours-box" :close-on-click="false">
-        <button v-if="menuHours * 60 * 60 != menuIssue.remaining" class="apply btn btn-sm btn-primary" @click="doHours(menuIssue, menuHours); $refs.hours_box.close()"><i class="fa fa-check"></i>&nbsp;Apply</button>
-        <div class="remaining"><input type="text" :value="`${menuHours}h`" @change="setMenuHours($event.srcElement)"> remaining</div>
-        <template v-if="menuIssue.estimate">
-            <div class="estimate"><span>{{ formatSeconds(menuIssue.estimate) }}</span> estimated</div>
-            <vue-simple-progress size="large" :val="Math.max(0, menuIssue.estimate - (menuHours * 60 * 60))" :max="menuIssue.estimate"></vue-simple-progress>
-        </template>
-        <template v-else>
-            <!-- This shows tasks with 0h estimates as "unestimated", even though that's technically distinct from no estimate -->
-            <div class="estimate">No original estimate</div>
-            <vue-simple-progress class="unestimated" size="large" :val="100"></vue-simple-progress>
-        </template>
-        <div class="hour-buttons">
-            <template v-for="amt in [+8, +4, +1, 0, -1, -4, -8]">
-                <button v-if="amt" :class="['btn', 'btn-sm', amt < 0 ? 'btn-success' : 'btn-danger']" @click="menuHours = Math.max(0, menuHours + amt)">
-                    {{ (amt > 0 ? '+' : '') + amt }}h
-                </button>
-                <div v-else class="spacer"></div>
+    <transition enter-active-class="animated flipInX quick" leave-active-class="animated flipOutX quick">
+        <su-context-menu v-if="menuIssue" ref="hours_box" class="hours-box" :close-on-click="false" @close="menuIssue = null">
+            <button v-if="menuHours * 60 * 60 != menuIssue.remaining" class="apply btn btn-sm btn-primary" @click="doHours(menuIssue, menuHours); $refs.hours_box.close()"><i class="fa fa-check"></i>&nbsp;Apply</button>
+            <div class="remaining"><input type="text" :value="`${menuHours}h`" @change="setMenuHours($event.srcElement)"> remaining</div>
+            <template v-if="menuIssue.estimate">
+                <div class="estimate"><span>{{ formatSeconds(menuIssue.estimate) }}</span> estimated</div>
+                <vue-simple-progress size="large" :val="Math.max(0, menuIssue.estimate - (menuHours * 60 * 60))" :max="menuIssue.estimate"></vue-simple-progress>
             </template>
-        </div>
-    </su-context-menu>
+            <template v-else>
+                <!-- This shows tasks with 0h estimates as "unestimated", even though that's technically distinct from no estimate -->
+                <div class="estimate">No original estimate</div>
+                <vue-simple-progress class="unestimated" size="large" :val="100"></vue-simple-progress>
+            </template>
+            <div class="hour-buttons">
+                <template v-for="amt in [+8, +4, +1, 0, -1, -4, -8]">
+                    <button v-if="amt" :class="['btn', 'btn-sm', amt < 0 ? 'btn-success' : 'btn-danger']" @click="menuHours = Math.max(0, menuHours + amt)">
+                        {{ (amt > 0 ? '+' : '') + amt }}h
+                    </button>
+                    <div v-else class="spacer"></div>
+                </template>
+            </div>
+        </su-context-menu>
+    </transition>
 </view>
 
 <script>
@@ -481,16 +487,12 @@
                 padding-right: 5px;
             }
 
-            .key {
-                padding-right: 10px;
+            .key, .assignee, .hours {
+                padding-right: 20px;
             }
 
             .summary {
                 width: 100%;
-            }
-
-            .assignee {
-                padding-right: 20px;
             }
 
             .hours {
@@ -578,7 +580,7 @@
         &.hours-box {
             border: 1px solid #000;
             width: 250px;
-            height: 150px;
+            height: 170px;
             padding: 10px;
             .remaining {
                 position: relative;
@@ -623,5 +625,10 @@
                 z-index: 1 // Otherwise the button ends up partially underneath the remaining estimate
             }
         }
+    }
+
+    .animated.quick {
+        -webkit-animation-duration: 250ms;
+        animation-duration: 250ms;
     }
 </style>

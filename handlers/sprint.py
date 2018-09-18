@@ -55,7 +55,7 @@ def getParentIssues(jira, issues, existingIds = None):
 			existingIds.add(parent['id'])
 			yield from getParentIssues(jira, [parent], existingIds)
 
-@get('sprint/(?P<id>[0-9]+)', view = 'sprint')
+@get('sprint/(?P<id>[0-9]+)', view = 'sprint', statics = 'third-party/animate')
 def sprint(handler, id):
 	handler.title(False)
 	return {} # Loaded via AJAX
