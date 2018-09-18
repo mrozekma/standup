@@ -58,7 +58,10 @@ def getParentIssues(jira, issues, existingIds = None):
 @get('sprint/(?P<id>[0-9]+)', view = 'sprint', statics = 'third-party/animate')
 def sprint(handler, id):
 	handler.title(False)
-	return {} # Loaded via AJAX
+	return {
+		'sprintId': id,
+		# Rest loaded via AJAX
+	}
 
 @get('sprint/(?P<id>[0-9]+)/data')
 def sprintData(handler, id):
@@ -79,7 +82,7 @@ def sprintData(handler, id):
 		members = {issue['assignee']['username']: issue['assignee'] for issue in issues + parents if issue['assignee']}.values()
 		members = sorted(members, key = lambda user: user['username'])
 
-		rtn = {'sprint_name': sprint['name'], 'members': members, 'issues': issues, 'parents': parents}
+		rtn = {'sprint_name': sprint['name'], 'board_id': sprint['originBoardId'], 'members': members, 'issues': issues, 'parents': parents}
 		print(json.dumps(rtn))
 		handler.contentType = 'application/json'
 	except APIError as e:

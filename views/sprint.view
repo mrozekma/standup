@@ -5,8 +5,10 @@
 
 <view>
     <h1 v-if="loaded">
-        {{ sprint_name }}
-        <button id="refresh-button" class="btn" @click="loadData">Refresh</button>
+        {{ sprintName }}
+        <!-- Flipped order because of right float: -->
+        <button id="refresh-button" class="btn btn-default" @click="loadData">Refresh</button>
+        <a v-if="boardId" id="board-button" class="btn btn-default jira" :href="`${$global.jiraUrl}/secure/RapidBoard.jspa?rapidView=${boardId}`" target="_blank">Board</a>
     </h1>
     <h1 v-else>Loading...</h1>
 
@@ -146,8 +148,11 @@
         //     SuContextMenuItem,
         },
         data: {
+            sprintId: null,
+
             // Loaded via AJAX
-            sprint_name: null,
+            sprintName: null,
+            boardId: null,
             members: [],
             issues: [],
             parents: [],
@@ -213,7 +218,8 @@
                     url: window.location + '/data',
                     success: function(data) {
                         self.error = null;
-                        self.sprint_name = data.sprint_name;
+                        self.sprintName = data.sprint_name;
+                        self.boardId = data.board_id;
                         self.members = data.members;
                         self.issues = data.issues;
                         self.parents = data.parents;
@@ -242,7 +248,7 @@
                         if(!self.error) {
                             self.error = 'Unknown error';
                         }
-                        self.sprint_name = 'Error';
+                        self.sprintName = 'Error';
                         self.loaded = true;
                     }
                 })
@@ -398,8 +404,11 @@
 </script>
 
 <style type="less">
-    h1 #refresh-button {
-        float: right;
+    h1 {
+        #board-button, #refresh-button {
+            float: right;
+            margin-left: 10px;
+        }
     }
 
     .filters {
