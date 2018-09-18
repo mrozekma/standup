@@ -90,6 +90,7 @@
         // Jira buttons have extra left padding to show the Jira icon
         a.btn.jira {
             padding: 3px 6px 3px 20px;
+            background-position: 3px 4px;
         }
     }
 

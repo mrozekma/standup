@@ -5,6 +5,7 @@ from Config import config
 from Jira import APIError
 
 from rorn import code
+from rorn.utils import redirect
 
 @get('', view = 'home')
 def home(handler):
@@ -34,13 +35,6 @@ def codeCSS(handler):
 	.selected_line { background-color: #aa0000aa; }
 	"""))
 
-@get('dyn.css', allowGuest = True)
-def dynCSS(handler):
-	handler.wrappers = False
-	handler.contentType = 'text/css'
-	print(dedent(f"""
-	a.jira, button.jira {{
-		padding-left: 20px;
-		background: url({config.jiraUrl}/images/64jira.png) 2px 4px/16px no-repeat;
-	}}
-	"""))
+@get('jira.png')
+def icon(handler):
+	redirect(f"{config.jiraUrl}/images/64jira.png")

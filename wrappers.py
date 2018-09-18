@@ -21,7 +21,6 @@ def header(handler, includes, view):
 
 	print("<link rel=\"stylesheet\" href=\"/static/third-party/font-awesome/css/font-awesome.min.css\">")
 	print("<link rel=\"stylesheet\" type=\"text/css\" href=\"/code.css\">")
-	print("<link rel=\"stylesheet\" type=\"text/css\" href=\"/dyn.css\">")
 
 	# jQuery
 	print("<script src=\"/static/third-party/jquery.min.js\"></script>")
