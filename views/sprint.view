@@ -54,10 +54,11 @@
             <td v-else class="assignee" @click.prevent="popup(issue, 'assignee_menu', $event)">
                 Unassigned
             </td>
-            <td class="hours" @click.prevent="popup(issue, 'hours_box', $event)">
-                <vue-simple-progress v-if="issue.remaining !== null" text-position="top" :text="formatSeconds(issue.remaining)" :val="Math.max(0, issue.estimate - issue.remaining)" :max="issue.estimate"></vue-simple-progress>
+            <td class="hours" v-if="issue.tracking" @click.prevent="popup(issue, 'hours_box', $event)">
+                <vue-simple-progress v-if="issue.tracking.remaining !== null" text-position="top" :text="formatSeconds(issue.tracking.remaining)" :val="Math.max(0, issue.tracking.estimate - issue.tracking.remaining)" :max="issue.tracking.estimate"></vue-simple-progress>
                 <div v-else class="unestimated">Unestimated</div>
             </td>
+            <td class="hours" v-else></td>
             <td class="summary" :style="`padding-left: ${issue.indent * 30}px;`"><img :src="issue.type.icon" :title="issue.type.name" class="type"> {{ issue.summary }}</td>
             <td class="links">
                 <a :href="`${$global.jiraUrl}/browse/${issue.key}`" title="View on Jira" target="_blank"><img :src="`${$global.jiraUrl}/images/64jira.png`"></a>
@@ -111,11 +112,11 @@
 
     <transition enter-active-class="animated flipInX quick" leave-active-class="animated flipOutX quick">
         <su-context-menu v-if="menuIssue" ref="hours_box" class="hours-box" :close-on-click="false" @close="menuIssue = null">
-            <button v-if="menuHours * 60 * 60 != menuIssue.remaining" class="apply btn btn-sm btn-primary" @click="doHours(menuIssue, menuHours); $refs.hours_box.close()"><i class="fa fa-check"></i>&nbsp;Apply</button>
+            <button v-if="menuHours * 60 * 60 != menuIssue.tracking.remaining" class="apply btn btn-sm btn-primary" @click="doHours(menuIssue, menuHours); $refs.hours_box.close()"><i class="fa fa-check"></i>&nbsp;Apply</button>
             <div class="remaining"><input type="text" :value="`${menuHours}h`" @change="setMenuHours($event.srcElement)"> remaining</div>
-            <template v-if="menuIssue.estimate">
-                <div class="estimate"><span>{{ formatSeconds(menuIssue.estimate) }}</span> estimated</div>
-                <vue-simple-progress size="large" :val="Math.max(0, menuIssue.estimate - (menuHours * 60 * 60))" :max="menuIssue.estimate"></vue-simple-progress>
+            <template v-if="menuIssue.tracking.estimate">
+                <div class="estimate"><span>{{ formatSeconds(menuIssue.tracking.estimate) }}</span> estimated</div>
+                <vue-simple-progress size="large" :val="Math.max(0, menuIssue.tracking.estimate - (menuHours * 60 * 60))" :max="menuIssue.tracking.estimate"></vue-simple-progress>
             </template>
             <template v-else>
                 <!-- This shows tasks with 0h estimates as "unestimated", even though that's technically distinct from no estimate -->
@@ -290,7 +291,7 @@
             },
             popup: function(issue, menuName, e) {
                 this.menuIssue = issue;
-                this.menuHours = Math.ceil(issue.remaining / 60 / 60);
+                this.menuHours = Math.ceil(issue.tracking.remaining / 60 / 60);
                 // Need to render so the menu will be created now that menuIssue is non-null
                 this.$nextTick(() => this.$refs[menuName].open(e));
             },
@@ -389,12 +390,12 @@
             doHours: function(issue, hours) {
                 this.doUpdate(
                     issue,
-                    {remaining: hours + 'h', estimate: (issue.estimate == null) ? null : this.formatSeconds(issue.estimate)},
+                    {remaining: hours + 'h', estimate: (issue.tracking.estimate == null) ? null : this.formatSeconds(issue.tracking.estimate)},
                     function(data) {
-                        issue.remaining = hours * 60 * 60;
+                        issue.tracking.remaining = hours * 60 * 60;
                         // Matching Jira's behavior:
-                        if(issue.estimate == null) {
-                            issue.estimate = issue.remaining;
+                        if(issue.tracking.estimate == null) {
+                            issue.tracking.estimate = issue.tracking.remaining;
                         }
                     }
                 )

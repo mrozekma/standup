@@ -39,8 +39,10 @@ def processIssue(jira, issue):
 			'username': issue['fields']['assignee']['name'],
 			'avatar': jira.getLargestAvatar(issue['fields']['assignee']['avatarUrls']),
 		} if issue['fields']['assignee'] else None,
-		'estimate': issue['fields']['timetracking'].get('originalEstimateSeconds', None),
-		'remaining': issue['fields']['timetracking'].get('remainingEstimateSeconds', None),
+		'tracking': {
+			'estimate': issue['fields']['timetracking'].get('originalEstimateSeconds', None),
+			'remaining': issue['fields']['timetracking'].get('remainingEstimateSeconds', None),
+		} if 'timetracking' in issue['fields'] else None,
 		'parent': parent,
 		'transitions': formatTransitions(issue['transitions']),
 	}
@@ -48,12 +50,13 @@ def processIssue(jira, issue):
 def getParentIssues(jira, issues, existingIds = None):
 	if existingIds is None:
 		existingIds = {issue['id'] for issue in issues}
-	for issue in issues:
-		if issue['parent'] is not None and issue['parent'] not in existingIds:
-			parent = processIssue(jira, jira.get(f"agile/issue/{issue['parent']}", expand = 'transitions'))
-			yield parent
-			existingIds.add(parent['id'])
-			yield from getParentIssues(jira, [parent], existingIds)
+	parentIds = {issue['parent'] for issue in issues if issue['parent'] is not None and issue['parent'] not in existingIds}
+	if not parentIds:
+		return []
+	data = jira.get('api/search', jql = ' or '.join(f"id={id}" for id in parentIds), expand = 'transitions')
+	parents = list(processIssue(jira, issue) for issue in data)
+	existingIds |= parentIds
+	return parents + getParentIssues(jira, parents, existingIds)
 
 @get('sprint/(?P<id>[0-9]+)', view = 'sprint', statics = 'third-party/animate')
 def sprint(handler, id):
