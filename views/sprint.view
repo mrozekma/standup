@@ -39,7 +39,7 @@
                 </su-callout>
             </td>
         </tr>
-        <tr v-for="(issue, idx) in issuesOrdered" v-if="isVisible(issue)" :key="`row-${issue.id}`" :data-id="issue.id" class="issue" :class="[`status-category-${issue.status.category}`, {sprint: issue.inSprint}]">
+        <tr v-for="(issue, idx) in issuesOrdered.filter(isVisible)" :key="`row-${issue.id}`" :data-id="issue.id" class="issue" :class="[`status-category-${issue.status.category}`, {sprint: issue.inSprint}]">
             <td class="index">
                 <vue-simple-spinner v-if="processing.includes(issue)" size="small"></vue-simple-spinner>
                 <span v-else class="badge">{{ idx + 1 }}</span>
