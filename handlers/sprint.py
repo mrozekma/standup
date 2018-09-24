@@ -19,9 +19,10 @@ def processIssue(jira, issue):
 			parent = link['inwardIssue']['id']
 			break
 	else:
-		if 'epic' in issue['fields']:
-			# For some reason this is an int instead of a string
-			parent = str(issue['fields']['epic']['id'])
+		for field in ('parent', 'epic'):
+			if field in issue['fields']:
+				# For some reason this is an int instead of a string
+				parent = str(issue['fields'][field]['id'])
 
 	return {
 		'id': issue['id'],
