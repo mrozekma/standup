@@ -1,6 +1,6 @@
 import json
 
-from Jira import APIError
+from Jira import APIError, apiHandler
 
 def formatTransitions(transitions):
 	return [{
@@ -67,30 +67,23 @@ def sprint(handler, id):
 	}
 
 @get('sprint/(?P<id>[0-9]+)/data')
+@apiHandler
 def sprintData(handler, id):
-	handler.wrappers = False
+	data = list(handler.jira.get(f"agile/sprint/{id}/issue", expand = 'transitions'))
+	issues = list(processIssue(handler.jira, issue) for issue in data)
+	# Get parents that aren't in the sprint
+	parents = list(getParentIssues(handler.jira, issues))
 
-	try:
-		data = list(handler.jira.get(f"agile/sprint/{id}/issue", expand = 'transitions'))
-		issues = list(processIssue(handler.jira, issue) for issue in data)
-		# Get parents that aren't in the sprint
-		parents = list(getParentIssues(handler.jira, issues))
+	# Every issue has the sprint info as one of the fields
+	if data:
+		sprint = data[0]['fields']['sprint']
+	else:
+		sprint = handler.jira.get(f"agile/sprint/{id}")
 
-		# Every issue has the sprint info as one of the fields
-		if data:
-			sprint = data[0]['fields']['sprint']
-		else:
-			sprint = handler.jira.get(f"agile/sprint/{id}")
+	members = {issue['assignee']['username']: issue['assignee'] for issue in issues + parents if issue['assignee']}.values()
+	members = sorted(members, key = lambda user: user['username'])
 
-		members = {issue['assignee']['username']: issue['assignee'] for issue in issues + parents if issue['assignee']}.values()
-		members = sorted(members, key = lambda user: user['username'])
-
-		rtn = {'sprint_name': sprint['name'], 'board_id': sprint['originBoardId'], 'members': members, 'issues': issues, 'parents': parents}
-		print(json.dumps(rtn))
-		handler.contentType = 'application/json'
-	except APIError as e:
-		print(str(e))
-		handler.responseCode = 400
+	return {'sprint_name': sprint['name'], 'board_id': sprint['originBoardId'], 'members': members, 'issues': issues, 'parents': parents}
 
 @post('sprint/(?P<id>[0-9]+)/update')
 def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None, p_remaining = None, p_estimate = None, p_returnUserInfo = False):

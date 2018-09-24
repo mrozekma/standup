@@ -6,8 +6,9 @@
             <div class="navbar-header">
                 <a class="navbar-brand" href="/">Standup</a>
             </div>
-            <ul class="nav navbar-nav">
-                <li v-for="project in projectSubset" class="dropdown">
+            <vue-simple-spinner v-if="projects == null" size="medium" class="loading nav navbar-nav"></vue-simple-spinner>
+            <ul v-if="$global.user" class="nav navbar-nav">
+                <li v-for="project in projects" class="dropdown">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button">{{ project.name }} <span class="caret"></span></a>
                     <ul class="dropdown-menu">
                         <template v-for="board in project.boards">
@@ -35,13 +36,37 @@
 
 <script>
     export default {
-        props: ['projects'],
-        computed: {
-            projectSubset: function() {
-                // Only include projects with boards, and only so many
-                return this.projects ? this.projects.filter(project => project.boards.length > 0).slice(0, 4) : undefined;
+        data: function() {
+            return {
+                projects: null,
+            };
+        },
+        mounted: function() {
+            if(this.$global.user) {
+                var self = this;
+                $.get({
+                    url: '/data?recent',
+                    success: function(data) {
+                        self.projects = data;
+                    },
+                    error: function(xhr, type, desc) {
+                        console.error(type);
+                        console.error(desc);
+                        var error = (type == 'error') ? xhr.responseText : desc;
+                        if(!error) {
+                            error = 'Unknown error';
+                        }
+                        Vue.toasted.show(error, {
+                            position: 'bottom-center',
+                            duration: 5000,
+                            icon: 'exclamation-circle',
+                            type: 'error',
+                            closeOnSwipe: true,
+                        });
+                    }
+                })
             }
-        }
+        },
     }
 </script>
 
@@ -58,6 +83,10 @@
             flex: 1 0 auto;
             margin: auto auto;
             padding-right: 10px;
+
+            .loading {
+                margin-top: 8px;
+            }
         }
 
         .ident {

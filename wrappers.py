@@ -3,10 +3,8 @@ import json
 from pathlib import Path
 import subprocess
 from textwrap import dedent
-from xml.sax.saxutils import quoteattr
 
 from Config import config
-from Jira import APIError
 
 proc = subprocess.run(['git', 'describe', '--all', '--long', '--abbrev=40', '--dirty'], cwd = Path(__file__).resolve().parent, stdout = subprocess.PIPE)
 curHash = proc.stdout.decode('utf8')
@@ -69,13 +67,7 @@ def header(handler, includes, view):
 	print("<body>")
 	print("<div id=\"vue-root\" v-cloak>")
 
-	projects = None
-	if handler.session['user']:
-		try:
-			projects = handler.jira.getProjects(recent = True)
-		except APIError:
-			pass
-	print(f"<su-header :projects={quoteattr(json.dumps(projects))}></su-header>")
+	print(f"<su-header></su-header>")
 
 	print("<div class=\"content\">")
 	if handler.pageSubtitle is not False:

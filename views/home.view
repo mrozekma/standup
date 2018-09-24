@@ -1,4 +1,5 @@
 <view>
+    <vue-simple-spinner v-if="recent_projects === true" size="medium" class="spinner"></vue-simple-spinner>
     <div v-for="project in projects" v-if="project.boards.length > 0" class="project">
         <img class="avatar" :src="project.avatar">
         <h2 class="name">{{ project.name }}</h2>
@@ -14,51 +15,66 @@
             <template><!-- This prevents Vue from eating the spacing between the links --></template>
         </template>
     </div>
-    <button v-if="other_projects === null" @click="loadOtherProjects" class="btn btn-primary">Load other projects</button>
-    <button v-else-if="other_projects === true" class="btn btn-primary loading" disabled>
-        <vue-simple-spinner size="small" class="spinner"></vue-simple-spinner>
-        Loading... (this may take a minute)
-    </button>
-    <su-callout v-if="other_projects_error" type="danger" title="Error">
-        {{ other_projects_error }}
+    <template v-if="recent_projects !== null && recent_projects !== true">
+        <button v-if="other_projects === null" @click="loadOtherProjects" class="btn btn-primary">Load other projects</button>
+        <button v-else-if="other_projects === true" class="btn btn-primary loading" disabled>
+            <vue-simple-spinner size="small" class="spinner"></vue-simple-spinner>
+            Loading... (this may take a minute)
+        </button>
+    </template>
+    <su-callout v-if="error" type="danger" title="Error">
+        {{ error }}
     </su-callout>
 </view>
 
 <script vue>
     export default {
         data: {
-            recent_projects: [], // Loaded from controller
+            recent_projects: null, // Loaded via AJAX in loadRecentProjects(). 'null' if unloaded, 'true' if currently loading
             other_projects: null, // Loaded via AJAX in loadOtherProjects(). 'null' if unloaded, 'true' if currently loading
-            other_projects_error: null,
+            error: null,
         },
         computed: {
             projects: function() {
+                if(this.recent_projects == null) {
+                    return [];
+                }
                 switch(this.other_projects) {
                     case null:
                     case true:
                         return this.recent_projects;
                     default:
-                        return this.recent_projects.concat(this.other_projects);
+                        // Filter out the projects we're already showing
+                        var other_projects = this.other_projects.filter(project => !this.recent_projects.some(project2 => project2.key == project.key));
+                        return this.recent_projects.concat(other_projects);
                 }
             }
         },
+        mounted: function() {
+            this.loadRecentProjects();
+        },
         methods: {
+            loadRecentProjects: function() {
+                this.loadProjects('/data?recent', 'recent_projects');
+            },
             loadOtherProjects: function() {
-                this.other_projects = true;
+                this.loadProjects('/data', 'other_projects');
+            },
+            loadProjects: function(url, dst) {
+                this[dst] = true;
                 var self = this;
                 $.get({
-                    url: '/data',
+                    url: url,
                     success: function(data) {
-                        self.other_projects_error = null;
-                        // Filter out the projects we're already showing
-                        self.other_projects = data.projects.filter(project => !self.recent_projects.some(project2 => project2.key == project.key));
+                        self.error = null;
+                        self[dst] = data;
                     },
                     error: function(xhr, type, desc) {
                         console.error(type);
                         console.error(desc);
-                        self.other_projects_error = (type == 'error') ? xhr.responseText : desc;
-                        if(!self.other_projects_error) {
-                            self.other_projects_error = 'Unknown error';
+                        self.error = (type == 'error') ? xhr.responseText : desc;
+                        if(!self.error) {
+                            self.error = 'Unknown error';
                         }
                     }
                 })

@@ -2,25 +2,19 @@ import json
 from textwrap import dedent
 
 from Config import config
-from Jira import APIError
+from Jira import apiHandler
 
 from rorn import code
 from rorn.utils import redirect
 
 @get('', view = 'home')
 def home(handler):
-	return {'recent_projects': handler.jira.getProjects(recent = True)}
+	return {} # Loaded via AJAX
 
 @get('data')
-def projectData(handler):
-	handler.wrappers = False
-
-	try:
-		print(json.dumps({'projects': handler.jira.getProjects()}))
-		handler.contentType = 'application/json'
-	except APIError as e:
-		print(str(e))
-		handler.responseCode = 400
+@apiHandler
+def projectData(handler, recent = False):
+	return handler.jira.getProjects(recent = recent) if handler.session['user'] else []
 
 @get('code.css', allowGuest = True)
 def codeCSS(handler):

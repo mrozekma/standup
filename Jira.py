@@ -154,10 +154,10 @@ class Jira:
 		if cacheWrite:
 			self.cache[(url, params, None)] = wholeList
 
-	def getProjects(self, recent = None):
+	def getProjects(self, recent = False):
 		convertDate = lambda ts: self.parseTimestamp(ts).strftime('%d %b').lstrip('0')
 		# 'recent' can be a number to get that many recently viewed projects, 'True' to get a default number, or 'None' to get all projects
-		recentKw = {'recent': 5 if recent is True else recent} if recent is not None else {}
+		recentKw = {'recent': 5 if recent is True else recent} if recent is not False else {}
 
 		return [{
 			'key': project['key'],
@@ -230,3 +230,14 @@ class Cache:
 
 	def clear(self):
 		self.entries.clear()
+
+def apiHandler(fn):
+	def wrapper(handler, **kw):
+		handler.wrappers = False
+		try:
+			print(json.dumps(fn(handler, **kw)))
+			handler.contentType = 'application/json'
+		except APIError as e:
+			print(str(e))
+			handler.responseCode = 400
+	return wrapper
