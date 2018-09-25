@@ -1,5 +1,7 @@
 import json
+import lxml.html
 
+from Config import config
 from Jira import APIError, apiHandler
 
 def formatTransitions(transitions):
@@ -11,6 +13,27 @@ def formatTransitions(transitions):
 			'category': transition['to']['statusCategory']['key'],
 		}
 	} for transition in transitions]
+
+def processJiraHtml(html):
+	if not html:
+		return html
+
+	configBase = config.jiraUrl
+	try:
+		start = configBase.index('://') + 3
+	except IndexError:
+		start = 0
+	try:
+		configBase = configBase[:configBase.index('/', start)]
+	except IndexError:
+		pass
+
+	# Rendered emoticons use relative URLs for some reason
+	root = lxml.html.fromstring(html)
+	for el in root.iter('img'):
+		if 'src' in el.attrib:
+			el.attrib['src'] = configBase + el.attrib['src']
+	return lxml.html.tostring(root).decode('utf8')
 
 def processIssue(jira, issue):
 	parent = None
@@ -27,6 +50,7 @@ def processIssue(jira, issue):
 	return {
 		'id': issue['id'],
 		'key': issue['key'],
+		'description': processJiraHtml(issue['renderedFields']['description']),
 		'type': {
 			'name': issue['fields']['issuetype']['name'],
 			'icon': issue['fields']['issuetype']['iconUrl'],
@@ -46,6 +70,14 @@ def processIssue(jira, issue):
 		} if 'timetracking' in issue['fields'] else None,
 		'parent': parent,
 		'transitions': formatTransitions(issue['transitions']),
+		'comments': [{
+			'id': comment['id'],
+			'author': {
+				'username': comment['author']['name'],
+				'avatar': jira.getLargestAvatar(comment['author']['avatarUrls']),
+			},
+			'body': processJiraHtml(comment['body']),
+		} for comment in (issue['renderedFields']['comment']['comments'] if 'comment' in issue['renderedFields'] else [])],
 	}
 
 def getParentIssues(jira, issues, existingIds = None):
@@ -54,7 +86,7 @@ def getParentIssues(jira, issues, existingIds = None):
 	parentIds = {issue['parent'] for issue in issues if issue['parent'] is not None and issue['parent'] not in existingIds}
 	if not parentIds:
 		return []
-	data = jira.get('api/search', jql = ' or '.join(f"id={id}" for id in parentIds), expand = 'transitions')
+	data = jira.get('api/search', jql = ' or '.join(f"id={id}" for id in parentIds), expand = 'transitions,renderedFields')
 	parents = list(processIssue(jira, issue) for issue in data)
 	existingIds |= parentIds
 	return parents + getParentIssues(jira, parents, existingIds)
@@ -70,7 +102,7 @@ def sprint(handler, id):
 @get('sprint/(?P<id>[0-9]+)/data')
 @apiHandler
 def sprintData(handler, id):
-	data = list(handler.jira.get(f"agile/sprint/{id}/issue", expand = 'transitions'))
+	data = list(handler.jira.get(f"agile/sprint/{id}/issue", expand = 'transitions,renderedFields'))
 	issues = list(processIssue(handler.jira, issue) for issue in data)
 	# Get parents that aren't in the sprint
 	parents = list(getParentIssues(handler.jira, issues))

@@ -59,7 +59,18 @@
                 <div v-else class="unestimated">Unestimated</div>
             </td>
             <td class="hours" v-else></td>
-            <td class="summary" :style="`padding-left: ${issue.indent * 30}px;`"><img :src="issue.type.icon" :title="issue.type.name" class="type"> {{ issue.summary }}</td>
+            <td class="summary" :style="`padding-left: ${issue.indent * 30}px;`" @click="issue.expanded = !issue.expanded">
+                <img :src="issue.type.icon" :title="issue.type.name" class="type"> {{ issue.summary }}
+                <transition-group enter-active-class="animated fadeInLeftShort quick" leave-active-class="animated fadeOutRightShort quick">
+                    <template v-if="issue.expanded">
+                        <su-callout v-if="issue.description" :key="`description-${issue.id}`" v-html="issue.description" class="description"></su-callout>
+                        <su-callout v-for="comment in issue.comments" :key="`comment-${comment.id}`" class="comment">
+                            <div class="comment-header">Comment by <img :src="comment.author.avatar" class="avatar"><div class="name">{{ comment.author.username }}</div></div>
+                            <div v-html="comment.body"></div>
+                        </su-callout>
+                    </template>
+                </transition-group>
+            </td>
             <td class="links">
                 <a :href="`${$global.jiraUrl}/browse/${issue.key}`" title="View on Jira" target="_blank"><img :src="`${$global.jiraUrl}/images/64jira.png`"></a>
             </td>
@@ -228,12 +239,14 @@
 
                         // Add on a few issue fields for use by issuesOrdered
                         for(let issue of self.issues) {
-                            issue.inSprint = true;
-                            issue.indent = 0;
+                            Vue.set(issue, 'inSprint', true);
+                            Vue.set(issue, 'indent', 0);
+                            Vue.set(issue, 'expanded', false);
                         }
                         for(let issue of self.parents) {
-                            issue.inSprint = false;
-                            issue.indent = 0;
+                            Vue.set(issue, 'inSprint', false);
+                            Vue.set(issue, 'indent', 0);
+                            Vue.set(issue, 'expanded', false);
                         }
 
                         if(self.filterUsername && !self.members.some(member => member.username == self.filterUsername)) {
@@ -422,7 +435,7 @@
         }
     }
 
-    .issues tr.issue .assignee, .filters button {
+    .issues tr.issue .assignee, .issues tr.issue .summary .comment, .filters button {
         margin-right: 3px;
         img.avatar {
             width: 16px;
@@ -478,6 +491,7 @@
             td {
                 white-space: nowrap;
                 padding: 4px 1px;
+                vertical-align: top;
 
                 img {
                     position: relative;
@@ -503,6 +517,10 @@
 
             .summary {
                 width: 100%;
+                .comment .comment-header {
+                    border-bottom: 1px solid #aaa;
+                    padding-bottom: 4px;
+                }
             }
 
             .hours {
@@ -522,7 +540,7 @@
                 }
             }
 
-            .status, .assignee, .hours {
+            .status, .assignee, .hours, .summary {
                 cursor: pointer;
             }
         }
@@ -640,5 +658,36 @@
     .animated.quick {
         -webkit-animation-duration: 250ms;
         animation-duration: 250ms;
+    }
+
+    @keyframes fadeInLeftShort {
+        from {
+            opacity: 0;
+            transform: translate3d(-10%, 0, 0);
+        }
+
+        to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+        }
+    }
+
+    .animated.fadeInLeftShort {
+        animation-name: fadeInLeftShort;
+    }
+
+    @keyframes fadeOutRightShort {
+        from {
+            opacity: 1;
+        }
+
+        to {
+            opacity: 0;
+            transform: translate3d(20%, 0, 0);
+        }
+    }
+
+    .animated.fadeOutRightShort {
+        animation-name: fadeOutRightShort;
     }
 </style>

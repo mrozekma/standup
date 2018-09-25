@@ -6,7 +6,7 @@
             <div class="navbar-header">
                 <a class="navbar-brand" href="/">Standup</a>
             </div>
-            <vue-simple-spinner v-if="projects == null" size="medium" class="loading nav navbar-nav"></vue-simple-spinner>
+            <vue-simple-spinner v-if="$global.user && projects == null" size="medium" class="loading nav navbar-nav"></vue-simple-spinner>
             <ul v-if="$global.user" class="nav navbar-nav">
                 <li v-for="project in projects" class="dropdown">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button">{{ project.name }} <span class="caret"></span></a>

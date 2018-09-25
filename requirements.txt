@@ -1,4 +1,5 @@
 bleach
+lxml
 pygments
 
 oauthlib
