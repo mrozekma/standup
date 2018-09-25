@@ -21,11 +21,11 @@ def processJiraHtml(html):
 	configBase = config.jiraUrl
 	try:
 		start = configBase.index('://') + 3
-	except IndexError:
+	except ValueError:
 		start = 0
 	try:
 		configBase = configBase[:configBase.index('/', start)]
-	except IndexError:
+	except ValueError:
 		pass
 
 	# Rendered emoticons use relative URLs for some reason
