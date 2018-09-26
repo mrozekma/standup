@@ -230,6 +230,9 @@
             },
         },
         watch: {
+            sprintName: function(newVal) {
+                document.title = newVal ? `${newVal} - Standup` : 'Standup';
+            },
             filterUsername: function(newVal) {
                 if(newVal && !this.members.some(member => member.username == newVal)) {
                     this.filterUsername = null;
