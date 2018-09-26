@@ -1,15 +1,17 @@
+import urllib.parse
+
 from rorn.utils import done, redirect
 
 from Config import config
 from Jira import oauth, Jira
 
 @get('login', allowGuest = True)
-def login(handler):
-	authURL = oauth.authorize()
+def login(handler, redir = None):
+	authURL = oauth.authorize(redir)
 	redirect(authURL)
 
 @get('login-finish', allowGuest = True)
-def loginFinish(handler, oauth_token, oauth_verifier):
+def loginFinish(handler, oauth_token, oauth_verifier, redir = '/'):
 	if oauth_verifier == 'denied':
 		print(f"<su-login denied='true'></su-login>")
 		done()
@@ -26,7 +28,7 @@ def loginFinish(handler, oauth_token, oauth_verifier):
 	}
 	handler.session.remember('user')
 
-	redirect('/')
+	redirect(urllib.parse.unquote(redir))
 
 #TODO Improve
 @get('logout')

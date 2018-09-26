@@ -29,6 +29,6 @@ def codeCSS(handler):
 	.selected_line { background-color: #aa0000aa; }
 	"""))
 
-@get('jira.png')
+@get('jira.png', allowGuest = True)
 def icon(handler):
 	redirect(f"{config.jiraUrl}/images/64jira.png")

@@ -18,8 +18,11 @@ class OAuth:
 			'signature_method': oauthlib.oauth1.SIGNATURE_RSA,
 		}
 
-	def authorize(self):
-		s = requests_oauthlib.OAuth1Session(callback_uri = f"{config.localUrl}/login-finish", **self.commonArgs)
+	def authorize(self, redir = None):
+		callback = f"{config.localUrl}/login-finish"
+		if redir:
+			callback += f"?redir={redir}"
+		s = requests_oauthlib.OAuth1Session(callback_uri = callback, **self.commonArgs)
 		try:
 			s.fetch_request_token(oauthUrl % 'request-token')
 		except requests_oauthlib.oauth1_session.TokenRequestDenied as e:
