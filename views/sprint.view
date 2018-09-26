@@ -60,13 +60,16 @@
             </td>
             <td class="hours" v-else></td>
             <td class="summary" :style="`padding-left: ${issue.indent * 30}px;`" @click="issue.expanded = !issue.expanded">
-                <img :src="issue.type.icon" :title="issue.type.name" class="type"> {{ issue.summary }}
+                <img :src="issue.type.icon" :title="issue.type.name" class="type"> <span class="summary-text">{{ issue.summary }}</span>
                 <transition-group enter-active-class="animated fadeInLeftShort quick" leave-active-class="animated fadeOutRightShort quick">
                     <template v-if="issue.expanded">
                         <su-callout v-if="issue.description" :key="`description-${issue.id}`" v-html="issue.description" class="description"></su-callout>
                         <su-callout v-for="comment in issue.comments" :key="`comment-${comment.id}`" class="comment">
                             <div class="comment-header">Comment by <img :src="comment.author.avatar" class="avatar"><div class="name">{{ comment.author.username }}</div></div>
                             <div v-html="comment.body"></div>
+                        </su-callout>
+                        <su-callout v-if="!(issue.description || issue.comments.length > 0)" :key="`description-${issue.id}`" type="danger">
+                            <i>No description</i>
                         </su-callout>
                     </template>
                 </transition-group>
@@ -465,8 +468,14 @@
             }
 
             &.status-category-indeterminate {
-                .key, .summary {
+                .key, .summary > span.summary-text {
                     font-weight: bold;
+                }
+            }
+
+            &.status-category-done {
+                .key, .summary > span.summary-text {
+                    text-decoration: line-through;
                 }
             }
 
@@ -489,7 +498,6 @@
             */
 
             td {
-                white-space: nowrap;
                 padding: 4px 1px;
                 vertical-align: top;
 
@@ -513,10 +521,16 @@
 
             .key, .assignee, .hours {
                 padding-right: 20px;
+                white-space: nowrap;
             }
 
             .summary {
                 width: 100%;
+
+                .bd-callout p:first-child {
+                    margin-top: 0;
+                }
+
                 .comment .comment-header {
                     border-bottom: 1px solid #aaa;
                     padding-bottom: 4px;
