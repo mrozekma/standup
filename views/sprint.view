@@ -181,6 +181,10 @@
         },
         mounted: function() {
             this.loadData();
+            self = this;
+            window.addEventListener('hashchange', function() {
+                self.filterUsername = window.location.hash ? window.location.hash.substr(1) : null;
+            });
         },
         computed: {
             issuesOrdered: function() {
@@ -225,12 +229,21 @@
                 return rtn;
             },
         },
+        watch: {
+            filterUsername: function(newVal) {
+                if(newVal && !this.members.some(member => member.username == newVal)) {
+                    this.filterUsername = null;
+                } else {
+                    window.location.hash = newVal ? '#' + newVal : '';
+                }
+            },
+        },
         methods: {
             loadData: function() {
                 var self = this;
                 self.loaded = false;
                 $.get({
-                    url: window.location + '/data',
+                    url: window.location.pathname + '/data',
                     success: function(data) {
                         self.error = null;
                         self.sprintName = data.sprint_name;
@@ -250,6 +263,10 @@
                             Vue.set(issue, 'inSprint', false);
                             Vue.set(issue, 'indent', 0);
                             Vue.set(issue, 'expanded', false);
+                        }
+
+                        if(window.location.hash) {
+                            self.filterUsername = window.location.hash.substr(1);
                         }
 
                         if(self.filterUsername && !self.members.some(member => member.username == self.filterUsername)) {
