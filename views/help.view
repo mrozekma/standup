@@ -1,0 +1,87 @@
+<view>
+    <div class="help">
+        <div class="prolog">
+            <b>Standup</b> is meant to be a simpler interface to Jira for use during daily Scrum standup meetings.
+            It's <i>not</i> intended to replace Jira entirely, and in fact links to Jira regularly in case you need it (Jira links will have a <img class="jira" src="/jira.png"> next to them).
+            <br><br>
+            Standup communicates with Jira via a rather slow REST API, so these operations are done asynchronously. If you see <vue-simple-spinner size="small" class="spinner"></vue-simple-spinner> on a page, it's waiting for a response from Jira.
+        </div>
+
+        <h2>Home</h2>
+        <lightbox class="screenshot" thumbnail="/static/images/help/home.png" :images="['/static/images/help/home.png']">
+            <lightbox-default-loader slot="loader"></lightbox-default-loader>
+        </lightbox>
+        <div class="text">
+            Projects in the header at the top and on the homepage are the projects you've visited most recently on Jira. If you need access to another project, there's a button on the homepage to load every project you have access to.<br><br>
+            Underneath each project, before generic links to Jira pages, is a Standup link for every currently active sprint. Follow one of these links to get to the Sprint page.
+        </div>
+
+        <h2>Sprint</h2>
+        <lightbox class="screenshot" thumbnail="/static/images/help/sprint.png" :images="['/static/images/help/sprint.png']">
+            <lightbox-default-loader slot="loader"></lightbox-default-loader>
+        </lightbox>
+        <div class="text">
+            The sprint view shows every issue in the sprint, along with any parents up the tree, even if those parent issues aren't in the sprint (parents inserted this way are dimmed and don't have visible hour estimates). Parent/child relationships come from:
+            <ul>
+                <li>Issues under an epic</li>
+                <li>Subtasks</li>
+                <li>Issues linked by a "Structure" link</li>
+            </ul>
+            This view is intended to be compact so as many tasks as possible are visible at once. You can click the summary of a task to see its description and comments, which are often quite long. You can also click the <img class="jira" src="/jira.png"> on the right edge of an issue to go to the corresponding Jira page.<br><br>
+            Since sprint meetings tend to poll members for updates one at a time, the buttons along the top of the page let you filter the displayed issues based on assignee. Click the currently selected user again to clear the filter.
+        </div>
+        <lightbox class="screenshot" thumbnail="/static/images/help/sprint-menus.png" :images="['/static/images/help/sprint-menus.png']">
+            <lightbox-default-loader slot="loader"></lightbox-default-loader>
+        </lightbox>
+        <div class="text">
+            Because Standup is intended for use in sprint meetings, only fields typically edited in these meetings are editable here, all by clicking on the current value. These are:
+            <ul>
+                <li><b>Status</b> &mdash; Jira's workflow system is fairly complicated. The options listed in the menu are transition names, equivalent to workflow buttons at the top of an issue page, or the drop target rectangles on a board. If a transition name is confusing, mousing over it shows the status the issue will transition to if chosen. Additionally, the orb next to the transition shows you the general category of the new status: <img class="status" src="/static/images/status-new.png">Not started, <img class="status" src="/static/images/status-indeterminate.png">In progress, or <img class="status" src="/static/images/status-done.png">Done.</li>
+                <li><b>Assignee</b> &mdash; Jira has no concept of sprint members, so the options in the menu are any user who already has at least one task in the sprint. To specify a different user, choose "Other" and enter their username.</li>
+                <li><b>Remaining hours</b> &mdash; Standup assumes that all sprints are using hour tracking, and does not support story points. The hours column shows the remaining hours, with a progress bar showing how close the task is to completion based on the original estimate. Hours in the popup can be edited either with the adjustment buttons, or by clicking the hours text and typing. Remember to click the Apply button to save the change back to Jira.</li>
+            </ul>
+        </div>
+    </div>
+</view>
+
+<style type="less">
+    .help {
+        display: grid;
+        grid-template-columns: 500px auto;
+        grid-column-gap: 20px;
+        grid-row-gap: 20px;
+
+        .prolog, h2 {
+            grid-column: ~"1/span 2";
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        .screenshot {
+            grid-column: 1;
+        }
+
+        .text {
+            grid-column: 2;
+        }
+
+        img.jira {
+            width: 16px;
+        }
+
+        img.status {
+            position: relative;
+            top: -1px;
+            margin-right: 2px;
+        }
+
+        .spinner {
+            display: inline-block;
+            position: relative;
+            top: 2px;
+        }
+    }
+</style>

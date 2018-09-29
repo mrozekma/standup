@@ -26,6 +26,9 @@
             <ul v-if="$global.user" class="nav navbar-nav navbar-right">
                 <li><a href="/logout">Logout</a></li>
             </ul>
+            <ul class="nav navbar-nav navbar-right">
+                <li><a href="/help">Help</a></li>
+            </ul>
         </nav>
         <div v-if="$global.user" class="ident">
             <img :src="$global.user.avatar">
