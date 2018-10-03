@@ -353,7 +353,7 @@
                 data.issue = issue.id;
                 self.processing.push(issue);
                 $.post({
-                    url: window.location + '/update',
+                    url: window.location.pathname + '/update',
                     data: data,
                     complete: function(xhr, status) {
                         self.processing.splice(self.processing.indexOf(issue), 1);
