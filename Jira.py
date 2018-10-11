@@ -172,9 +172,9 @@ class Jira:
 				'sprints': [{
 					'id': sprint['id'],
 					'name': sprint['name'],
-					'startDate': convertDate(sprint['startDate']),
-					'endDate': convertDate(sprint['endDate']),
-				} for sprint in self.get(f"agile/board/{board['id']}/sprint", state = 'active', cacheRead = True)],
+					'startDate': convertDate(sprint['startDate']) if 'startDate' in sprint else None,
+					'endDate': convertDate(sprint['endDate']) if 'endDate' in sprint else None,
+				} for sprint in self.get(f"agile/board/{board['id']}/sprint", state = 'active,future', cacheRead = True)],
 			} for board in self.get('agile/board', projectKeyOrId = project['key'], type = 'scrum', cacheRead = True)],
 		} for project in self.get('api/project', expand = 'lead', **recentKw, cacheRead = True)]
 

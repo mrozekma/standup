@@ -107,10 +107,10 @@ def sprintData(handler, id):
 	# Get parents that aren't in the sprint
 	parents = list(getParentIssues(handler.jira, issues))
 
-	# Every issue has the sprint info as one of the fields
-	if data:
+	# Every issue has the sprint info as one of the fields (unless the sprint is inactive)
+	try:
 		sprint = data[0]['fields']['sprint']
-	else:
+	except:
 		sprint = handler.jira.get(f"agile/sprint/{id}")
 
 	members = {issue['assignee']['username']: issue['assignee'] for issue in issues + parents if issue['assignee']}.values()
