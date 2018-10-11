@@ -15,6 +15,9 @@
     <div v-if="loaded" class="filters">
         <button v-for="member in members" @click="filterUsername = (filterUsername == member.username) ? null : member.username" :class="['btn', 'btn-sm', (filterUsername == member.username) ? 'btn-primary' : null]"><img :src="member.avatar" class="avatar"><div class="name">{{ member.username }}</div></button>
     </div>
+    <div v-if="loaded" class="filters">
+        <button v-for="status in statuses" @click="$set(filterStatuses, status.name, (filterStatuses[status.name] === false))" :class="['btn', 'btn-sm', (filterStatuses[status.name] !== false) ? 'btn-primary': null]"><img :src="`/static/images/status-${status.category}.png`" class="status"><div class="name">{{ status.name }}</div></button>
+    </div>
 
     <table class="issues">
         <tr>
@@ -175,6 +178,7 @@
             loaded: false,
             error: null,
             filterUsername: null, // Only show issues assigned to this user
+            filterStatuses: {}, // Only show issues with statuses that map to true here, or are omitted (done this way because all statuses are shown by default)
             processing: [], // issues currently processing. Sets aren't reactive :(
             menuIssue: null, // issue we're showing a context menu for
             menuHours: null, // hours for issue we're showing a context menu for. Only relevant for hours popup
@@ -227,6 +231,22 @@
                     }
                 }
                 return rtn;
+            },
+            statuses: function() {
+                // Complete list of statuses is at api/project/{key}/statuses, but it would take an extra API query. Just show the statuses that are currently in use in the sprint.
+                // Sorted in bulk categories (new, then indeterminate, then done), and alphabetized within those
+                var statuses = {
+                    new: new Set(),
+                    indeterminate: new Set(),
+                    done: new Set(),
+                }
+                this.issues.forEach(issue => statuses[issue.status.category].add(issue.status.name));
+                var setToObj = category => Array.from(statuses[category]).sort().map(name => ({name: name, category: category}));
+                return [
+                    ...setToObj('new'),
+                    ...setToObj('indeterminate'),
+                    ...setToObj('done'),
+                ]
             },
         },
         watch: {
@@ -320,10 +340,13 @@
                 if(!this.loaded || this.error) {
                     return false;
                 }
-                if(!this.filterUsername) {
-                    return true;
+                if(this.filterUsername && !this.treeAssignees.get(issue.id).includes(this.filterUsername)) {
+                    return false;
                 }
-                return this.treeAssignees.get(issue.id).includes(this.filterUsername);
+                if(this.filterStatuses[issue.status.name] === false) {
+                    return false;
+                }
+                return true;
             },
             popup: function(issue, menuName, e) {
                 this.menuIssue = issue;
@@ -449,8 +472,8 @@
     }
 
     .filters {
-        margin-top: -5px;
-        margin-bottom: 10px;
+        display: inline-block;
+        margin: -5px 30px 10px 0;
 
         .btn-primary {
             background-color: #286090;
@@ -460,7 +483,7 @@
 
     .issues tr.issue .assignee, .issues tr.issue .summary .comment, .filters button {
         margin-right: 3px;
-        img.avatar {
+        img.avatar, img.status {
             width: 16px;
             margin-right: 3px;
         }
