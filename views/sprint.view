@@ -129,20 +129,15 @@
 
     <transition enter-active-class="animated flipInX quick" leave-active-class="animated flipOutX quick">
         <su-context-menu v-if="menuIssue" ref="hours_box" class="hours-box" :close-on-click="false" @close="menuIssue = null">
-            <button v-if="menuHours * 60 * 60 != menuIssue.tracking.remaining" class="apply btn btn-sm btn-primary" @click="doHours(menuIssue, menuHours); $refs.hours_box.close()"><i class="fa fa-check"></i>&nbsp;Apply</button>
-            <div class="remaining"><input type="text" :value="`${menuHours}h`" @change="setMenuHours($event.srcElement)"> remaining</div>
-            <template v-if="menuIssue.tracking.estimate">
-                <div class="estimate"><span>{{ formatSeconds(menuIssue.tracking.estimate) }}</span> estimated</div>
-                <vue-simple-progress size="large" :val="Math.max(0, menuIssue.tracking.estimate - (menuHours * 60 * 60))" :max="menuIssue.tracking.estimate"></vue-simple-progress>
-            </template>
-            <template v-else>
-                <!-- This shows tasks with 0h estimates as "unestimated", even though that's technically distinct from no estimate -->
-                <div class="estimate">No original estimate</div>
-                <vue-simple-progress class="unestimated" size="large" :val="100"></vue-simple-progress>
-            </template>
+            <button v-if="menuHoursRemaining * 60 * 60 != menuIssue.tracking.remaining || menuHoursEstimate * 60 * 60 != menuIssue.tracking.estimate" class="apply btn btn-sm btn-primary" @click="doHours(menuIssue, menuHoursRemaining, menuHoursEstimate); $refs.hours_box.close()"><i class="fa fa-check"></i>&nbsp;Apply</button>
+            <div class="remaining"><input type="text" :value="`${menuHoursRemaining}h`" @change="setMenuHours('menuHoursRemaining', $event.srcElement)"> remaining</div>
+            <div class="estimate"><input type="text" :value="`${menuHoursEstimate}h`" @change="setMenuHours('menuHoursEstimate', $event.srcElement)"> estimated</div>
+            <!-- Small numbers don't seem to work in vue-simple-progress, so the val and max here are both scaled 100x -->
+            <vue-simple-progress v-if="menuHoursEstimate" size="large" :val="Math.max(0, menuHoursEstimate - menuHoursRemaining) * 100" :max="menuHoursEstimate * 100"></vue-simple-progress>
+            <vue-simple-progress v-else class="unestimated" size="large" :val="100"></vue-simple-progress>
             <div class="hour-buttons">
                 <template v-for="amt in [+8, +4, +1, 0, -1, -4, -8]">
-                    <button v-if="amt" :class="['btn', 'btn-sm', amt < 0 ? 'btn-success' : 'btn-danger']" @click="menuHours = Math.max(0, menuHours + amt)">
+                    <button v-if="amt" :class="['btn', 'btn-sm', amt < 0 ? 'btn-success' : 'btn-danger']" @click="menuHoursRemaining = Math.max(0, menuHoursRemaining + amt)">
                         {{ (amt > 0 ? '+' : '') + amt }}h
                     </button>
                     <div v-else class="spacer"></div>
@@ -181,7 +176,8 @@
             filterStatuses: {}, // Only show issues with statuses that map to true here, or are omitted (done this way because all statuses are shown by default)
             processing: [], // issues currently processing. Sets aren't reactive :(
             menuIssue: null, // issue we're showing a context menu for
-            menuHours: null, // hours for issue we're showing a context menu for. Only relevant for hours popup
+            menuHoursRemaining: null, // remaining hours for issue we're showing a context menu for. Only relevant for hours popup
+            menuHoursEstimate: null, // estimated hours for issue we're showing a context menu for. Only relevant for hours popup
         },
         mounted: function() {
             this.loadData();
@@ -350,14 +346,15 @@
             },
             popup: function(issue, menuName, e) {
                 this.menuIssue = issue;
-                this.menuHours = Math.ceil(issue.tracking.remaining / 60 / 60);
+                this.menuHoursRemaining = Math.ceil(issue.tracking.remaining / 60 / 60);
+                this.menuHoursEstimate = Math.ceil(issue.tracking.estimate / 60 / 60);
                 // Need to render so the menu will be created now that menuIssue is non-null
                 this.$nextTick(() => this.$refs[menuName].open(e));
             },
-            setMenuHours: function(el) {
+            setMenuHours: function(field, el) {
                 match = el.value.match(/^([0-9]+)h?$/);
                 if(match) {
-                    this.menuHours = parseInt(match[1], 10);
+                    this[field] = parseInt(match[1], 10);
                 } else {
                     Vue.toasted.show("Bad hours value", {
                         position: 'bottom-center',
@@ -446,16 +443,14 @@
                     },
                 );
             },
-            doHours: function(issue, hours) {
+            doHours: function(issue, remaining, estimate) {
                 this.doUpdate(
                     issue,
-                    {remaining: hours + 'h', estimate: (issue.tracking.estimate == null) ? null : this.formatSeconds(issue.tracking.estimate)},
+                    {remaining: remaining + 'h', estimate: (issue.tracking.estimate == null && estimate == 0) ? null : estimate + 'h'},
                     function(data) {
-                        issue.tracking.remaining = hours * 60 * 60;
-                        // Matching Jira's behavior:
-                        if(issue.tracking.estimate == null) {
-                            issue.tracking.estimate = issue.tracking.remaining;
-                        }
+                        issue.tracking.remaining = remaining * 60 * 60;
+                        // Matching Jira's behavior: setting remaining hours without an estimate will default the estimate to the remaining hours
+                        issue.tracking.estimate = ((issue.tracking.estimate == null && estimate == 0) ? remaining : estimate) * 60 * 60;
                     }
                 )
             }
@@ -667,6 +662,12 @@
             width: 250px;
             height: 170px;
             padding: 10px;
+            .remaining input, .estimate input {
+                border: 0;
+                background: inherit;
+                width: 4ch;
+                text-align: right;
+            }
             .remaining {
                 position: relative;
                 top: 8px;
@@ -676,10 +677,6 @@
                     font-size: 2em;
                 }
                 input {
-                    text-align: right;
-                    border: 0;
-                    background: inherit;
-                    width: 4ch;
                     font-size: 2em; // This stacks on top of the outer size
                 }
             }
