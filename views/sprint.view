@@ -84,43 +84,43 @@
     </table>
 
     <transition enter-active-class="animated fadeIn quick" leave-active-class="animated fadeOut quick">
-        <su-context-menu v-if="menuIssue" ref="status_menu" class="status-menu" @close="menuIssue = null">
+        <su-context-menu v-if="menu.issue" ref="status_menu" class="status-menu" @close="menu.issue = null">
             <ul>
                 <su-context-menu-item
-                        v-for="transition in menuIssue.transitions"
+                        v-for="transition in menu.issue.transitions"
                         :key="`status-item-${transition.id}`"
                         :icon="`/static/images/status-${transition.status.category}.png`"
                         :title="transition.status.name"
                         :text="transition.name"
-                        @click="doTransition(menuIssue, transition)"
+                        @click="doTransition(menu.issue, transition)"
                 ></su-context-menu-item>
             </ul>
         </su-context-menu>
     </transition>
 
     <transition enter-active-class="animated fadeIn quick" leave-active-class="animated fadeOut quick">
-        <su-context-menu v-if="menuIssue" ref="assignee_menu" class="assignee-menu" @close="menuIssue = null">
+        <su-context-menu v-if="menu.issue" ref="assignee_menu" class="assignee-menu" @close="menu.issue = null">
             <ul>
                 <!-- Current user -->
                 <su-context-menu-item
-                    v-if="menuIssue.assignee && menuIssue.assignee.username != $global.user.username"
+                    v-if="menu.issue.assignee && menu.issue.assignee.username != $global.user.username"
                     :icon="$global.user.avatar"
                     :text="$global.user.username"
-                    @click="doAssign(menuIssue, $global.user)"
+                    @click="doAssign(menu.issue, $global.user)"
                     style="border-bottom: 1px solid #bdbdbd"
                 ></su-context-menu-item>
                 <su-context-menu-item
                     v-for="member in members"
-                    v-if="member.username != $global.user.username && (!menuIssue.assignee || member.username != menuIssue.assignee.username)"
+                    v-if="member.username != $global.user.username && (!menu.issue.assignee || member.username != menu.issue.assignee.username)"
                     :key="`assignee-item-${member.username}`"
                     :icon="member.avatar"
                     :text="member.username"
-                    @click="doAssign(menuIssue, member)"
+                    @click="doAssign(menu.issue, member)"
                 ></su-context-menu-item>
                 <!-- Prompt for user -->
                 <su-context-menu-item
                     text="Other"
-                    @click="doAssignPrompt(menuIssue)"
+                    @click="doAssignPrompt(menu.issue)"
                     style="border-top: 1px solid #bdbdbd"
                 ></su-context-menu-item>
             </ul>
@@ -128,16 +128,16 @@
     </transition>
 
     <transition enter-active-class="animated flipInX quick" leave-active-class="animated flipOutX quick">
-        <su-context-menu v-if="menuIssue" ref="hours_box" class="hours-box" :close-on-click="false" @close="menuIssue = null">
-            <button v-if="menuHoursRemaining * 60 * 60 != menuIssue.tracking.remaining || menuHoursEstimate * 60 * 60 != menuIssue.tracking.estimate" class="apply btn btn-sm btn-primary" @click="doHours(menuIssue, menuHoursRemaining, menuHoursEstimate); $refs.hours_box.close()"><i class="fa fa-check"></i>&nbsp;Apply</button>
-            <div class="remaining"><input type="text" :value="`${menuHoursRemaining}h`" @change="setMenuHours('menuHoursRemaining', $event.srcElement)"> remaining</div>
-            <div class="estimate"><input type="text" :value="`${menuHoursEstimate}h`" @change="setMenuHours('menuHoursEstimate', $event.srcElement)"> estimated</div>
+        <su-context-menu v-if="menu.issue" ref="hours_box" class="hours-box" :close-on-click="false" @close="menu.issue = null">
+            <button v-if="menu.hoursRemaining * 60 * 60 != menu.issue.tracking.remaining || menu.hoursEstimate * 60 * 60 != menu.issue.tracking.estimate" class="apply btn btn-sm btn-primary" @click="doHours(menu.issue, menu.hoursRemaining, menu.hoursEstimate); $refs.hours_box.close()"><i class="fa fa-check"></i>&nbsp;Apply</button>
+            <div class="remaining"><input type="text" :value="`${menu.hoursRemaining}h`" @change="setMenuHours('hoursRemaining', $event.srcElement)"> remaining</div>
+            <div class="estimate"><input type="text" :value="`${menu.hoursEstimate}h`" @change="setMenuHours('hoursEstimate', $event.srcElement)"> estimated</div>
             <!-- Small numbers don't seem to work in vue-simple-progress, so the val and max here are both scaled 100x -->
-            <vue-simple-progress v-if="menuHoursEstimate" size="large" :val="Math.max(0, menuHoursEstimate - menuHoursRemaining) * 100" :max="menuHoursEstimate * 100"></vue-simple-progress>
+            <vue-simple-progress v-if="menu.hoursEstimate" size="large" :val="Math.max(0, menu.hoursEstimate - menu.hoursRemaining) * 100" :max="menu.hoursEstimate * 100"></vue-simple-progress>
             <vue-simple-progress v-else class="unestimated" size="large" :val="100"></vue-simple-progress>
             <div class="hour-buttons">
                 <template v-for="amt in [+8, +4, +1, 0, -1, -4, -8]">
-                    <button v-if="amt" :class="['btn', 'btn-sm', amt < 0 ? 'btn-success' : 'btn-danger']" @click="menuHoursRemaining = Math.max(0, menuHoursRemaining + amt)">
+                    <button v-if="amt" :class="['btn', 'btn-sm', amt < 0 ? 'btn-success' : 'btn-danger']" @click="menu.hoursRemaining = Math.max(0, menu.hoursRemaining + amt)">
                         {{ (amt > 0 ? '+' : '') + amt }}h
                     </button>
                     <div v-else class="spacer"></div>
@@ -175,9 +175,11 @@
             filterUsername: null, // Only show issues assigned to this user
             filterStatuses: {}, // Only show issues with statuses that map to true here, or are omitted (done this way because all statuses are shown by default)
             processing: [], // issues currently processing. Sets aren't reactive :(
-            menuIssue: null, // issue we're showing a context menu for
-            menuHoursRemaining: null, // remaining hours for issue we're showing a context menu for. Only relevant for hours popup
-            menuHoursEstimate: null, // estimated hours for issue we're showing a context menu for. Only relevant for hours popup
+            menu: { // info about the current context menu
+                issue: null, // which issue the menu is for
+                hoursRemaining: null, // remaining hours (only used for hours popup)
+                hoursEstimate: null, // estimated hours (only used for hours popup)
+            },
         },
         mounted: function() {
             this.loadData();
@@ -345,16 +347,16 @@
                 return true;
             },
             popup: function(issue, menuName, e) {
-                this.menuIssue = issue;
-                this.menuHoursRemaining = Math.ceil(issue.tracking.remaining / 60 / 60);
-                this.menuHoursEstimate = Math.ceil(issue.tracking.estimate / 60 / 60);
-                // Need to render so the menu will be created now that menuIssue is non-null
+                this.menu.issue = issue;
+                this.menu.hoursRemaining = Math.ceil(issue.tracking.remaining / 60 / 60);
+                this.menu.hoursEstimate = Math.ceil(issue.tracking.estimate / 60 / 60);
+                // Need to render so the menu will be created now that menu.issue is non-null
                 this.$nextTick(() => this.$refs[menuName].open(e));
             },
             setMenuHours: function(field, el) {
                 match = el.value.match(/^([0-9]+)h?$/);
                 if(match) {
-                    this[field] = parseInt(match[1], 10);
+                    this.menu[field] = parseInt(match[1], 10);
                 } else {
                     Vue.toasted.show("Bad hours value", {
                         position: 'bottom-center',
