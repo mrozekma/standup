@@ -5,7 +5,10 @@
         <h2 class="name">{{ project.name }}</h2>
         <!-- Standup sprints, then project home, then board backlogs/sprints -->
         <template v-for="board in project.boards">
-            <a v-for="sprint in board.sprints" :href="'/sprint/' + sprint.id" class="btn btn-primary">{{ sprint.name }} ({{ sprint.startDate }} - {{ sprint.endDate}})</a>
+            <template v-for="sprint in board.sprints">
+                <a :href="'/sprint/' + sprint.id" class="btn btn-primary">{{ sprint.name }}<template v-if="sprint.startDate && sprint.endDate"> ({{ sprint.startDate }} - {{ sprint.endDate}})</template></a>
+                <template><!-- This prevents Vue from eating the spacing between the links --></template>
+            </template>
             <template><!-- This prevents Vue from eating the spacing between the links --></template>
         </template>
         <a :href="`${$global.jiraUrl}/projects/${project.key}/summary`" class="btn btn-default jira">Project home</a>
