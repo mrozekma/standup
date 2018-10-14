@@ -5,6 +5,8 @@ import lxml.html
 
 from Config import config
 from Jira import APIError, apiHandler
+from rorn.utils import redirect
+
 
 def formatTransitions(transitions):
 	return [{
@@ -176,3 +178,13 @@ def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None, p
 	except BaseException as e:
 		handler.responseCode = 400
 		print(str(e))
+
+@get('sprint/active')
+def sprintActive(handler, project = None):
+	key = project
+	data = handler.jira.getProjects()
+	sprints = sum((board['sprints'] for project in data for board in project['boards'] if key is None or project['key'] == key), [])
+	if len(sprints) == 1:
+		redirect(f"/sprint/{sprints[0]['id']}")
+	else:
+		redirect("/")
