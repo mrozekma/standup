@@ -96,7 +96,7 @@ class Jira:
 		)
 		if req.status_code == 204:
 			return None
-		if req.status_code != 200:
+		if req.status_code not in (200, 201):
 			messageExtractors = [
 				lambda json: json['message'],
 				lambda json: json['errorMessages'][0],

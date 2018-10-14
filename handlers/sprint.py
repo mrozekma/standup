@@ -67,6 +67,7 @@ def processIssue(jira, issue):
 		'tracking': {
 			'estimate': issue['fields']['timetracking'].get('originalEstimateSeconds', None),
 			'remaining': issue['fields']['timetracking'].get('remainingEstimateSeconds', None),
+			'logged': issue['fields']['timetracking'].get('timeSpentSeconds', None),
 		} if 'timetracking' in issue['fields'] else None,
 		'parent': parent,
 		'transitions': formatTransitions(issue['transitions']),
@@ -119,7 +120,7 @@ def sprintData(handler, id):
 	return {'sprint_name': sprint['name'], 'board_id': sprint['originBoardId'], 'members': members, 'issues': issues, 'parents': parents}
 
 @post('sprint/(?P<id>[0-9]+)/update')
-def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None, p_remaining = None, p_estimate = None, p_returnUserInfo = False):
+def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None, p_remaining = None, p_estimate = None, p_logged = None, p_returnUserInfo = False):
 	handler.wrappers = False
 	p_issue = int(p_issue)
 
@@ -138,11 +139,17 @@ def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None, p
 					'avatar': handler.jira.getLargestAvatar(data['avatarUrls'])
 				}))
 				handler.contentType = 'application/json'
-		elif p_remaining is not None or p_estimate is not None:
+		elif p_remaining is not None: # remaining, estimate, and logged are all sent together; unset values are empty strings
 			tracking = {}
-			if p_remaining is not None: tracking['remainingEstimate'] = p_remaining
-			if p_estimate is not None: tracking['originalEstimate'] = p_estimate
-			handler.jira.put(f"api/issue/{p_issue}", data = {'fields': {'timetracking': tracking}})
+			if p_remaining:
+				tracking['remainingEstimate'] = p_remaining
+			if p_estimate:
+				tracking['originalEstimate'] = p_estimate
+			if tracking:
+				handler.jira.put(f"api/issue/{p_issue}", data = {'fields': {'timetracking': tracking}})
+
+			if p_logged:
+				handler.jira.post(f"api/issue/{p_issue}/worklog", adjustEstimate = 'leave', data = {'timeSpent': p_logged})
 		else:
 			handler.responseCode = 400
 			print("No update")

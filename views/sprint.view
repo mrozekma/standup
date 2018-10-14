@@ -129,7 +129,7 @@
 
     <transition enter-active-class="animated flipInX quick" leave-active-class="animated flipOutX quick">
         <su-context-menu v-if="menu.issue" ref="hours_box" class="hours-box" :close-on-click="false" @close="menu.issue = null">
-            <button v-if="menu.hoursRemaining * 60 * 60 != menu.issue.tracking.remaining || menu.hoursEstimate * 60 * 60 != menu.issue.tracking.estimate" class="apply btn btn-sm btn-primary" @click="doHours(menu.issue, menu.hoursRemaining, menu.hoursEstimate); $refs.hours_box.close()"><i class="fa fa-check"></i>&nbsp;Apply</button>
+            <button v-if="hoursMenuChanged()" class="apply btn btn-sm btn-primary" @click="doHours(menu.issue, menu.hoursRemaining, menu.hoursEstimate, menu.hoursLogged); $refs.hours_box.close()"><i class="fa fa-check"></i>&nbsp;Apply</button>
             <div class="remaining"><input type="text" :value="`${menu.hoursRemaining}h`" @change="setMenuHours('hoursRemaining', $event.srcElement)"> remaining</div>
             <div class="estimate"><input type="text" :value="`${menu.hoursEstimate}h`" @change="setMenuHours('hoursEstimate', $event.srcElement)"> estimated</div>
             <!-- Small numbers don't seem to work in vue-simple-progress, so the val and max here are both scaled 100x -->
@@ -143,6 +143,21 @@
                     <div v-else class="spacer"></div>
                 </template>
             </div>
+            <hr>
+            <div class="hour-buttons">
+                <template v-for="amt in [+8, +4, +1]">
+                    <button class="btn btn-sm btn-primary" @click="menu.hoursLogged += amt">
+                        +{{ amt }}h
+                    </button>
+                </template>
+                <!-- This button matches the change made to the remaining hours. Only shown if positive and not one of the existing buttons -->
+                <button v-if="logWorkButton" class="btn btn-sm btn-primary" @click="menu.hoursLogged = secondsToHours(menu.issue.tracking.logged) + logWorkButton">
+                    {{ logWorkButton }}h
+                </button>
+                <div class="spacer"></div>
+                <div class="logged"><input type="text" :value="`${menu.hoursLogged}h`" @change="setMenuHours('hoursLogged', $event.srcElement)" @blur="$refs.hours_box.focus()"> logged</div>
+            </div>
+            <a href="#"></a> <!-- This is a place to tab to after editing the hoursLogged input; otherwise tab will blur the hours box and close it -->
         </su-context-menu>
     </transition>
 </view>
@@ -179,6 +194,7 @@
                 issue: null, // which issue the menu is for
                 hoursRemaining: null, // remaining hours (only used for hours popup)
                 hoursEstimate: null, // estimated hours (only used for hours popup)
+                hoursLogged: null, // work log hours (only used for hours popup)
             },
         },
         mounted: function() {
@@ -245,6 +261,17 @@
                     ...setToObj('indeterminate'),
                     ...setToObj('done'),
                 ]
+            },
+            // This is used by the hours popup to determine what the extra log work button's hour amount should be, if any
+            logWorkButton: function() {
+                if(!this.menu.issue) {
+                    return null;
+                }
+                var hoursDone = this.secondsToHours(this.menu.issue.tracking.remaining) - this.menu.hoursRemaining;
+                if(hoursDone < 0 || [8, 4, 1].includes(hoursDone)) {
+                    return null;
+                }
+                return hoursDone;
             },
         },
         watch: {
@@ -348,10 +375,19 @@
             },
             popup: function(issue, menuName, e) {
                 this.menu.issue = issue;
-                this.menu.hoursRemaining = Math.ceil(issue.tracking.remaining / 60 / 60);
-                this.menu.hoursEstimate = Math.ceil(issue.tracking.estimate / 60 / 60);
+                this.menu.hoursRemaining = this.secondsToHours(issue.tracking.remaining);
+                this.menu.hoursEstimate = this.secondsToHours(issue.tracking.estimate);
+                this.menu.hoursLogged = this.secondsToHours(issue.tracking.logged);
                 // Need to render so the menu will be created now that menu.issue is non-null
                 this.$nextTick(() => this.$refs[menuName].open(e));
+            },
+            secondsToHours: function(seconds) {
+                return Math.ceil(seconds / 60 / 60);
+            },
+            hoursMenuChanged: function() {
+                return this.menu.hoursRemaining != this.secondsToHours(this.menu.issue.tracking.remaining)
+                    || this.menu.hoursEstimate != this.secondsToHours(this.menu.issue.tracking.estimate)
+                    || this.menu.hoursLogged != this.secondsToHours(this.menu.issue.tracking.logged);
             },
             setMenuHours: function(field, el) {
                 match = el.value.match(/^([0-9]+)h?$/);
@@ -445,14 +481,22 @@
                     },
                 );
             },
-            doHours: function(issue, remaining, estimate) {
+            doHours: function(issue, remaining, estimate, logged) {
+                var oldLogged = this.secondsToHours(issue.tracking.logged);
                 this.doUpdate(
                     issue,
-                    {remaining: remaining + 'h', estimate: (issue.tracking.estimate == null && estimate == 0) ? null : estimate + 'h'},
+                    {
+                        remaining: remaining + 'h',
+                        estimate: (issue.tracking.estimate == null && estimate == 0) ? null : estimate + 'h',
+                        logged: (logged <= oldLogged) ? null : (logged - oldLogged) + 'h',
+                    },
                     function(data) {
                         issue.tracking.remaining = remaining * 60 * 60;
                         // Matching Jira's behavior: setting remaining hours without an estimate will default the estimate to the remaining hours
                         issue.tracking.estimate = ((issue.tracking.estimate == null && estimate == 0) ? remaining : estimate) * 60 * 60;
+                        if(logged > oldLogged) {
+                            issue.tracking.logged = logged * 60 * 60;
+                        }
                     }
                 )
             }
@@ -661,14 +705,16 @@
 
         &.hours-box {
             border: 1px solid #000;
-            width: 250px;
-            height: 170px;
+            width: 260px;
+            height: 220px;
             padding: 10px;
-            .remaining input, .estimate input {
-                border: 0;
-                background: inherit;
-                width: 4ch;
-                text-align: right;
+            .remaining, .estimate, .logged {
+                input {
+                    border: 0;
+                    background: inherit;
+                    width: 4ch;
+                    text-align: right;
+                }
             }
             .remaining {
                 position: relative;
@@ -683,6 +729,11 @@
                 }
             }
             .estimate {
+                text-align: right;
+            }
+            .logged {
+                display: inline-block;
+                margin: 4px 4px 0 0;
                 text-align: right;
             }
             .vue-simple-progress-bar {
@@ -707,6 +758,10 @@
                 top: 3px;
                 right: 13px;
                 z-index: 1 // Otherwise the button ends up partially underneath the remaining estimate
+            }
+            hr {
+                margin: 10px -10px 10px -10px;
+                border-color: #000;
             }
         }
     }
