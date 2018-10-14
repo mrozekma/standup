@@ -124,7 +124,7 @@ def sprintData(handler, id):
 		sprint = handler.jira.get(f"agile/sprint/{id}")
 
 	start, end = handler.jira.parseTimestamp(sprint['startDate']), handler.jira.parseTimestamp(sprint['endDate'])
-	today = datetime.now(start.tzinfo) + timedelta(days = 29 - 14)
+	today = datetime.now(start.tzinfo)
 	sprintLen = countDays(start, end) + 1
 	curDay = 0 if today < start else countDays(start, today) + 1
 
