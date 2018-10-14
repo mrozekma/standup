@@ -6,6 +6,8 @@
 <view>
     <h1 v-if="loaded">
         {{ sprintName }}
+        <span v-if="sprintDay <= sprintLen" class="badge badge-dark">Day {{ sprintDay }} of {{ sprintLen }}</span>
+        <span v-else class="badge badge-danger">Overrun {{ (sprintDay - sprintLen) + (sprintDay - sprintLen == 1 ? ' day' : ' days') }}</span>
         <!-- Flipped order because of right float: -->
         <button id="refresh-button" class="btn btn-default" @click="loadData">Refresh</button>
         <a v-if="boardId" id="board-button" class="btn btn-default jira" :href="`${$global.jiraUrl}/secure/RapidBoard.jspa?rapidView=${boardId}`" target="_blank">Board</a>
@@ -180,6 +182,8 @@
 
             // Loaded via AJAX
             sprintName: null,
+            sprintDay: null,
+            sprintLen: null,
             boardId: null,
             members: [],
             issues: [],
@@ -295,6 +299,8 @@
                     success: function(data) {
                         self.error = null;
                         self.sprintName = data.sprint_name;
+                        self.sprintDay = data.sprint_day;
+                        self.sprintLen = data.sprint_len;
                         self.boardId = data.board_id;
                         self.members = data.members;
                         self.issues = data.issues;

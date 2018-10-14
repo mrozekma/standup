@@ -1,4 +1,6 @@
 import json
+from datetime import datetime, timedelta
+
 import lxml.html
 
 from Config import config
@@ -92,6 +94,11 @@ def getParentIssues(jira, issues, existingIds = None):
 	existingIds |= parentIds
 	return parents + getParentIssues(jira, parents, existingIds)
 
+def countDays(fromdate, todate):
+	# https://stackoverflow.com/a/3615984/309308
+	daygenerator = (fromdate + timedelta(x + 1) for x in range((todate - fromdate).days))
+	return sum(1 for day in daygenerator if day.weekday() < 5)
+
 @get('sprint/(?P<id>[0-9]+)', view = 'sprint', statics = 'third-party/animate')
 def sprint(handler, id):
 	handler.title(False)
@@ -114,10 +121,23 @@ def sprintData(handler, id):
 	except:
 		sprint = handler.jira.get(f"agile/sprint/{id}")
 
+	start, end = handler.jira.parseTimestamp(sprint['startDate']), handler.jira.parseTimestamp(sprint['endDate'])
+	today = datetime.now(start.tzinfo) + timedelta(days = 29 - 14)
+	sprintLen = countDays(start, end) + 1
+	curDay = 0 if today < start else countDays(start, today) + 1
+
 	members = {issue['assignee']['username']: issue['assignee'] for issue in issues + parents if issue['assignee']}.values()
 	members = sorted(members, key = lambda user: user['username'])
 
-	return {'sprint_name': sprint['name'], 'board_id': sprint['originBoardId'], 'members': members, 'issues': issues, 'parents': parents}
+	return {
+		'sprint_name': sprint['name'],
+		'sprint_day': curDay,
+		'sprint_len': sprintLen,
+		'board_id': sprint['originBoardId'],
+		'members': members,
+		'issues': issues,
+		'parents': parents
+	}
 
 @post('sprint/(?P<id>[0-9]+)/update')
 def sprintUpdate(handler, id, p_issue, p_transition = None, p_assignee = None, p_remaining = None, p_estimate = None, p_logged = None, p_returnUserInfo = False):
